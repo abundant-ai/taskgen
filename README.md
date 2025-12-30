@@ -7,9 +7,9 @@
 
 ## Overview
 
-Automates creation of Harbor tasks from real-world bug fixes in open-source repositories. The pipeline works with **any programming language**. Claude Code analyzes the repo to detect language, runtime, build system, and test framework.
+Automates creation of Harbor tasks from real-world bug fixes in open-source repositories. Works with **any programming language**: Claude Code analyzes the repo to detect language, runtime, build system, and test framework.
 
-Each task reverses a merged PR to recreate the buggy state, validates tests fail on baseline, and pass after applying the fix. Fully containerized with dependencies installed at build time.
+Each task reverses a merged PR to recreate the buggy state, validates tests fail on baseline, and pass after applying the fix. Fully containerized with all dependencies installed at build time.
 
 ## Quick Start
 
@@ -55,7 +55,7 @@ export ANTHROPIC_API_KEY=<api-key>  # or use Claude Code OAuth
 - `taskgen analyze` — Deep analysis with agent trials to verify task quality
 - `taskgen clean` — Remove .state artifacts
 
-### Generate a Reversal Task
+### Generate a Task
 
 ```bash
 taskgen reversal --repo <owner/repo> --pr <num>
@@ -121,6 +121,8 @@ taskgen farm fastapi/fastapi --reset
 
 ### Validate Existing Tasks
 
+Verify that a task passes NOP (baseline fails) and Oracle (solution succeeds) agents:
+
 ```bash
 taskgen validate tasks/<task_id>
 ```
@@ -150,12 +152,16 @@ taskgen analyze tasks/<task_id>
 taskgen analyze tasks/<task_id> -k 5 -a claude-code
 ```
 
-**Analysis Pipeline:**
+<details>
+<summary>Analysis Pipeline</summary>
+
 1. Static quality check (Harbor's `tasks check`)
 2. Run N agent trials (default: 3 with Claude Code)
 3. AI-powered failure analysis (Harbor's `jobs summarize`)
 4. Instruction sufficiency check (Harbor's `tasks debug`)
 5. Solution variance analysis across successful trials
+
+</details>
 
 <details>
 <summary>Options</summary>
