@@ -439,7 +439,6 @@ def run_reversal(config: CreateConfig) -> None:
 
         harbor_root = config.output
         harbor_root.mkdir(parents=True, exist_ok=True)
-        console.print(Rule(Text("Generate Task", style="bold green")))
         t0 = time.perf_counter()
 
         # Universal flow: Works for any language
@@ -448,7 +447,6 @@ def run_reversal(config: CreateConfig) -> None:
 
         try:
             # Universal flow: skeleton generation + CC (any language)
-            console.print("[cyan]Using universal skeleton + CC flow (language-agnostic)[/cyan]")
             verbose = config.verbose
 
             # Step 1a: Fetch PR metadata
@@ -469,9 +467,7 @@ def run_reversal(config: CreateConfig) -> None:
             console.print(f"[dim]    Repo at: {repo_path}[/dim]")
 
             # Step 1c: Generate universal skeleton files (includes LLM call for PR evaluation)
-            console.print(
-                "[dim]  → Generating universal skeleton (includes LLM evaluation)...[/dim]"
-            )
+            console.print("[dim]  → Generating skeleton and evaluating...[/dim]")
             with console.status("Evaluating PR & writing skeleton...", spinner="dots"):
                 (
                     task_dir,
@@ -508,7 +504,7 @@ def run_reversal(config: CreateConfig) -> None:
                 console.print(
                     Rule(
                         Text(
-                            f"Claude Code: Copy & Adapt from PR #{task_reference.pr_number}",
+                            f"Claude Code: Adapt from PR #{task_reference.pr_number}",
                             style="bold magenta",
                         )
                     )
@@ -517,7 +513,7 @@ def run_reversal(config: CreateConfig) -> None:
                     f"[dim]Reference: {task_reference.task_id} | Timeout: {config.cc_timeout}s | Verbose: {str(verbose).lower()}[/dim]"
                 )
             else:
-                console.print(Rule(Text("Claude Code: Make It Work", style="bold magenta")))
+                console.print(Rule(Text("Claude Code", style="bold magenta")))
                 console.print(
                     f"[dim]Timeout: {config.cc_timeout}s | Verbose: {str(verbose).lower()}[/dim]"
                 )

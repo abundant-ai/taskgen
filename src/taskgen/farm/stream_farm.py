@@ -176,7 +176,6 @@ class StreamFarmer:
         self.console.print(Rule(Text(f"Stream Farming - {self.repo}", style="bold cyan")))
 
         # Universal pipeline info
-        self.console.print("[cyan]Using universal language-agnostic pipeline[/cyan]")
         self.console.print("[green]Only PRs that modify tests will be considered.[/green]")
 
         if self.config.issue_only:
@@ -215,8 +214,7 @@ class StreamFarmer:
         )
         self.console.print(f"[bold]{pr.title}[/bold]")
         self.console.print(
-            f"[dim]Author: {pr.author} | "
-            f"Merged: {merged_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} | "
+            f"[dim]Merged: {merged_dt.strftime('%Y-%m-%d %H:%M:%S UTC')} | "
             f"Files: {pr.files_changed} | "
             f"+{pr.additions}/-{pr.deletions}[/dim]"
         )

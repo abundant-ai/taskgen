@@ -198,11 +198,9 @@ def _run_reversal_for_pr_impl(
         require_minimum_difficulty=config.require_minimum_difficulty,
         min_source_files=config.min_source_files,
         max_source_files=config.max_source_files,
-        require_issue=config.issue_only,  # Pass through issue_only flag
-        environment=config.environment,  # Pass through environment type
+        require_issue=config.issue_only,
+        environment=config.environment,
     )
-
-    console.print(f"[dim]Generating task for PR #{pr.number} using pipeline directly...[/dim]")
 
     # Capture any errors from the pipeline
     success = False
