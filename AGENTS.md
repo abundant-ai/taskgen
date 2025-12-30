@@ -104,7 +104,7 @@ src/taskgen/
 ├── config.py               # Configuration dataclasses
 ├── create/                 # Core task generation logic
 │   ├── orchestrator.py     # PRToHarborPipeline - main orchestrator
-│   ├── reversal.py         # run_reversal() - CLI command implementation
+│   ├── create.py           # run_reversal() - CLI command implementation
 │   ├── pr_fetcher.py       # GitHub API interactions
 │   ├── repo_cache.py       # Local git repo caching
 │   ├── task_skeleton.py    # Language-agnostic skeleton generation

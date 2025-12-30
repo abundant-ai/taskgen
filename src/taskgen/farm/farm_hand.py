@@ -11,9 +11,9 @@ from rich.console import Console
 from rich.panel import Panel
 
 from taskgen.config import FarmConfig, CreateConfig
-from taskgen.reversal import TrivialPRError, MissingIssueError, ValidationError
-from taskgen.reversal.reversal import run_reversal
-from taskgen.reversal.task_reference import TaskReferenceStore
+from taskgen.create import TrivialPRError, MissingIssueError, ValidationError
+from taskgen.create.create import run_reversal
+from taskgen.create.task_reference import TaskReferenceStore
 
 
 def _now_utc() -> datetime:

@@ -9,7 +9,7 @@ from typing import Iterator, Optional, Set
 import requests
 from rich.console import Console
 
-from taskgen.reversal import is_test_file
+from taskgen.create import is_test_file
 
 from .farm_hand import PRCandidate, _slug
 from .state import StreamState

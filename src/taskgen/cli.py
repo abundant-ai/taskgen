@@ -9,8 +9,8 @@ load_dotenv()
 
 from harbor.models.environment_type import EnvironmentType
 from taskgen.config import CreateConfig, FarmConfig
-from taskgen.reversal.reversal import run_reversal
-from taskgen.reversal import TrivialPRError, MissingIssueError
+from taskgen.create.create import run_reversal
+from taskgen.create import TrivialPRError, MissingIssueError
 from taskgen.tools.validation import ValidationError
 from importlib.metadata import version as _pkg_version, PackageNotFoundError as _PkgNotFound
 from taskgen.tools.clean import run_clean
