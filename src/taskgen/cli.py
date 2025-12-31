@@ -13,7 +13,7 @@ from taskgen.config import CreateConfig, FarmConfig
 from taskgen.create import MissingIssueError, TrivialPRError
 from taskgen.create.create import run_reversal
 from taskgen.farm import StreamFarmer
-from taskgen.tools.analyze import AnalyzeArgs, run_analyze
+from taskgen.analyze import AnalyzeArgs, run_analyze
 from taskgen.tools.clean import run_clean
 from taskgen.tools.validate import ValidateArgs, run_validate
 from taskgen.tools.validation import ValidationError
@@ -213,7 +213,7 @@ def validate(
     )
 
 
-@app.command(help="Analyze a task by running agent trials and checking quality")
+@app.command(help="Analyze a task by running agent trials and classifying outcomes")
 def analyze(
     path: Path = typer.Argument(..., help="Path to the task directory to analyze"),
     agent: str = typer.Option(
@@ -229,6 +229,9 @@ def analyze(
     n_trials: int = typer.Option(
         3, "-k", "--n-trials", help="Number of trials to run", show_default=True
     ),
+    n_concurrent: int = typer.Option(
+        1, "-n", "--n-concurrent", help="Number of concurrent trials (1=sequential, 3-5 recommended)", show_default=True
+    ),
     jobs_dir: Path = typer.Option(
         Path(".state/analyze-jobs"),
         "--jobs-dir",
@@ -238,33 +241,58 @@ def analyze(
     skip_quality_check: bool = typer.Option(
         False, "--skip-quality-check", help="Skip static quality check"
     ),
-    skip_summarize: bool = typer.Option(
-        False, "--skip-summarize", help="Skip failure summarization"
+    skip_baseline: bool = typer.Option(
+        False, "--skip-baseline", help="Skip baseline validation (nop/oracle)"
+    ),
+    skip_classify: bool = typer.Option(
+        False, "--skip-classify", help="Skip LLM classification of trial outcomes"
     ),
     analysis_model: str = typer.Option(
-        "haiku",
+        "claude-sonnet-4-20250514",
         "--analysis-model",
-        help="Model for analysis (quality check, summarize, debug)",
+        help="Model for Claude Code classification",
         show_default=True,
     ),
     timeout_multiplier: float = typer.Option(
         1.0, "--timeout-multiplier", help="Multiply default timeouts", show_default=True
     ),
+    environment: str = typer.Option(
+        "docker",
+        "-e",
+        "--env",
+        help="Environment type for Harbor runs (docker|daytona|e2b|modal|runloop|gke)",
+        show_default=True,
+    ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Increase output verbosity"),
 ) -> None:
     """
-    Analyze a Harbor task to determine if it's well-specified and solvable.
+    Analyze a Harbor task to determine if it's well-specified.
 
-    This command runs multiple agent trials on the task and analyzes the results:
+    This command classifies trial outcomes to identify TASK PROBLEMS vs AGENT PROBLEMS:
 
-    1. Static quality check (uses Harbor's quality checker)
-    2. Runs N agent trials (default: 3 with Claude Code)
-    3. Summarizes any failures using AI analysis
-    4. Checks if instructions are sufficient
-    5. Analyzes solution variance across successful trials
+    1. Static quality check (Harbor's tasks check)
+    2. Baseline validation (nop should fail, oracle should pass)
+    3. Run N agent trials (default: 3 with Claude Code)
+    4. Classify each trial outcome:
+       - GOOD_SUCCESS: Agent solved it correctly
+       - BAD_SUCCESS: Agent cheated or tests too permissive
+       - GOOD_FAILURE: Agent failed due to its own limitations
+       - BAD_FAILURE: Agent failed due to task issues
+       - HARNESS_ERROR: Infrastructure problem
+    5. Compute task verdict with recommendations
 
-    Example:
-        taskgen analyze tasks/my-task -k 3 -a claude-code
+    The goal is to identify tasks that need fixing before release.
+
+    Flags match Harbor CLI conventions:
+        -k / --n-trials: Total number of trials to run
+        -n / --n-concurrent: Number of trials to run concurrently (parallelism)
+
+    Examples:
+        # Sequential (default)
+        taskgen analyze tasks/my-task -k 5
+
+        # Parallel (3 trials at once)
+        taskgen analyze tasks/my-task -k 10 -n 3
     """
     run_analyze(
         AnalyzeArgs(
@@ -272,10 +300,13 @@ def analyze(
             agent=agent,
             model=model,
             n_trials=n_trials,
+            n_concurrent=n_concurrent,
             jobs_dir=jobs_dir,
             skip_quality_check=skip_quality_check,
-            skip_summarize=skip_summarize,
+            skip_baseline=skip_baseline,
+            skip_classify=skip_classify,
             analysis_model=analysis_model,
+            environment=environment,
             timeout_multiplier=timeout_multiplier,
             verbose=verbose,
         )

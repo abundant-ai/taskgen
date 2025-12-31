@@ -1,0 +1,105 @@
+You are analyzing a Harbor task trial to determine if the task is well-specified.
+
+## Your Goal
+Determine whether this trial outcome reveals a TASK PROBLEM (needs fixing) or is normal agent behavior (task is fine).
+
+## The Verified Result
+**Test outcome: {result}** (pass = reward 1.0, fail = reward 0.0)
+
+This result is FINAL and has been verified by running the tests. Your job is to classify WHY this result occurred, not to re-determine pass/fail.
+
+**Classification constraints based on verified result:**
+- If result = 'pass' → classify as GOOD_SUCCESS or BAD_SUCCESS
+- If result = 'fail' → classify as GOOD_FAILURE, BAD_FAILURE, or HARNESS_ERROR
+
+## Where to Look
+
+Explore these directories to understand what happened:
+
+**Task Definition ({task_dir}):**
+- instruction.md - What the agent was asked to do
+- solution/solve.sh - Reference solution
+- tests/ - Test files that verify the solution
+
+**Trial Execution ({trial_dir}):**
+- agent/ - Agent execution logs and trajectory
+- verifier/test-stdout.txt - Test output
+- result.json - Contains verifier_result.rewards.reward
+
+Read the relevant files to understand WHY the result occurred, then classify accordingly.
+
+## Classification Taxonomy
+
+### HARNESS_ERROR (Infrastructure Issue)
+The agent never ran properly:
+- Agent binary not found (e.g., 'bash: claude: command not found')
+- Docker/container setup failures
+- Missing dependencies in test environment
+- Empty trajectory files
+
+### GOOD_FAILURE (Agent's Fault - Task is Fine)
+Agent ran but couldn't solve it due to its own limitations:
+- **Timeout**: Task requires many steps, agent ran out of time
+- **Wrong Approach**: Agent tried but couldn't converge on solution
+- **Implementation Bugs**: Agent understood task but made coding errors
+- **Context Loss**: Agent forgot earlier context or requirements
+- **Premature Stop**: Agent gave up early or declared success incorrectly
+- **Complexity Overwhelm**: Task is genuinely difficult
+
+### BAD_FAILURE (Task's Fault - Needs Fix) ⚠️
+Agent failed due to task specification issues:
+- **Underspecified Instruction**: Missing details that tests check for (file names, function signatures, exact formats)
+- **Rigid/Brittle Tests**: Tests check specific strings/formats rather than behavior
+- **Non-deterministic Tests**: Flaky due to timing, race conditions, or randomness
+- **Environment Issues**: Task-specific docker/package problems
+- **Missing File Reference**: Tests expect files not mentioned in instructions
+- **Ambiguous Requirements**: Instructions could be interpreted multiple ways
+
+⚠️ BAD_FAILURE usually affects ALL agents consistently. If multiple agents fail the same way, it's likely a task problem.
+
+### GOOD_SUCCESS (Legitimate Solution)
+Agent correctly solved the task:
+- Solution matches expected behavior from instruction
+- Tests verify actual functionality
+- Agent demonstrated understanding of the problem
+
+### BAD_SUCCESS (Cheating/Gaming) ⚠️
+Agent "passed" but through illegitimate means:
+- **Hardcoding**: Agent hardcodes expected outputs instead of solving
+- **Test Inspection**: Agent reads test file and returns exact expected values
+- **Oracle Copying**: Agent reads solution/ directory instead of solving
+- **Minimal Compliance**: Bare minimum to pass without solving actual problem
+- **Tests Too Permissive**: Tests accept trivial/wrong solutions
+- **Task Pre-solved**: Repository already contained the solution
+
+⚠️ BAD_SUCCESS indicates the task doesn't properly evaluate agent capability.
+
+## How to Analyze
+
+1. **Read the test output** (verifier/test-stdout.txt) - What specifically failed or passed?
+2. **Compare instruction vs tests** - Are tests checking for things NOT in instructions?
+3. **Examine agent trajectory** (agent/) - Did the agent try reasonable approaches?
+4. **Check for cheating patterns** - Did agent look at tests/solution or hardcode?
+5. **Consider consistency** - Would other agents likely have the same outcome?
+
+## Key Questions for Task Quality
+
+Ask yourself:
+- Could a competent human developer solve this from the instruction alone?
+- Are the tests fair given what's specified?
+- Is there exactly one correct interpretation of the requirements?
+- Would the agent's approach work if the tests were different but instruction-compliant?
+
+## Output Format
+
+REMEMBER: Your classification MUST match the verified result!
+- Result '{result}' means you must choose a matching classification (SUCCESS for pass, FAILURE for fail)
+
+Output ONLY valid JSON with this exact structure (no markdown, no code blocks, no explanation):
+{{
+  "classification": "HARNESS_ERROR | GOOD_FAILURE | BAD_FAILURE | GOOD_SUCCESS | BAD_SUCCESS",
+  "subtype": "specific subtype from the taxonomy above",
+  "evidence": "Quote specific test names, error messages, or code snippets that support your classification",
+  "root_cause": "1-2 sentence explanation of what specifically caused this outcome",
+  "recommendation": "If BAD_FAILURE or BAD_SUCCESS, explain how to fix the task. Otherwise write 'N/A - task is fine'"
+}}
