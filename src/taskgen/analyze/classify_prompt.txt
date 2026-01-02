@@ -3,6 +3,45 @@ You are analyzing a Harbor task trial to determine if the task is well-specified
 ## Your Goal
 Determine whether this trial outcome reveals a TASK PROBLEM (needs fixing) or is normal agent behavior (task is fine).
 
+**Critical Context:** This task has already passed baseline validation (oracle passes, nop fails). Your job is to detect problems that baseline validation CANNOT catch:
+- Underspecified instructions (agent lacks critical details)
+- Overspecified/brittle tests (tests coupled to specific implementation)
+- Ambiguous requirements (multiple valid interpretations)
+- Tests checking for details not mentioned in instructions
+
+## CRITICAL: Calibration for Hard Tasks
+
+**Hard tasks are SUPPOSED to be hard.** A 20-40% pass rate is EXPECTED and DESIRABLE for good benchmark tasks. Do NOT classify a failure as a task problem just because:
+- The agent had to explore the codebase to understand what to change
+- The instruction doesn't explicitly list every file that needs modification
+- The agent tried a reasonable approach that turned out to be wrong
+- The task requires significant investigation or domain expertise
+
+**The bar for BAD_FAILURE is HIGH.** Only classify as BAD_FAILURE if:
+- Information is GENUINELY IMPOSSIBLE to derive from instruction + codebase combined
+- Tests check for something that contradicts the instruction
+- Multiple valid solutions exist but tests only accept one specific approach
+- Tests are flaky or depend on non-deterministic behavior
+
+**Default to GOOD_FAILURE** when the agent fails. Agent failures are the norm for hard tasks.
+
+## CRITICAL: What the Agent Can and Cannot See
+
+**During the trial, the agent ONLY has access to:**
+- The `instruction.md` file describing the bug/task
+- The buggy codebase (repository code with the bug present)
+- Standard development tools (editor, terminal, etc.)
+
+**The agent CANNOT see and has NO knowledge of:**
+- `solution/` directory - contains fix.patch and solve.sh (used ONLY for oracle validation)
+- `tests/` directory - test files are copied in AFTER the agent finishes (for verification only)
+- Any patches, diffs, or reference solutions
+
+**This means:**
+- The agent must figure out the fix from scratch using only instruction.md and the buggy code
+- The agent has NO access to any "solution patch" - do NOT fault the agent for not using it
+- The agent cannot see how tests verify the solution - they work blind
+
 ## The Verified Result
 **Test outcome: {result}** (pass = reward 1.0, fail = reward 0.0)
 
@@ -12,14 +51,12 @@ This result is FINAL and has been verified by running the tests. Your job is to 
 - If result = 'pass' → classify as GOOD_SUCCESS or BAD_SUCCESS
 - If result = 'fail' → classify as GOOD_FAILURE, BAD_FAILURE, or HARNESS_ERROR
 
-## Where to Look
+## Where to Look (For YOUR Analysis - NOT What Agent Saw)
 
-Explore these directories to understand what happened:
-
-**Task Definition ({task_dir}):**
-- instruction.md - What the agent was asked to do
-- solution/solve.sh - Reference solution
-- tests/ - Test files that verify the solution
+**Task Definition ({task_dir}):** (for your analysis)
+- instruction.md - What the agent was told (ONLY thing agent sees from task)
+- solution/solve.sh - Reference solution (agent CANNOT see this)
+- tests/ - Test files that verify (agent CANNOT see these)
 
 **Trial Execution ({trial_dir}):**
 - agent/ - Agent execution logs and trajectory
@@ -27,6 +64,23 @@ Explore these directories to understand what happened:
 - result.json - Contains verifier_result.rewards.reward
 
 Read the relevant files to understand WHY the result occurred, then classify accordingly.
+
+**Task directory structure:**
+
+```
+<task-dir>
+├── instruction.md
+├── task.toml
+├── environment
+│   ├── Dockerfile
+│   └── bug.patch
+├── solution
+│   ├── solve.sh
+│   └── fix.patch
+└── tests
+    ├── test.sh
+    └── # test files (e.g., test_*.py, *.test.ts, *_test.go, etc.)
+```
 
 ## Classification Taxonomy
 
@@ -37,25 +91,65 @@ The agent never ran properly:
 - Missing dependencies in test environment
 - Empty trajectory files
 
-### GOOD_FAILURE (Agent's Fault - Task is Fine)
-Agent ran but couldn't solve it due to its own limitations:
+### GOOD_FAILURE (Agent's Fault - Task is Fine) ✓ DEFAULT FOR FAILURES
+Agent ran but couldn't solve it due to its own limitations. **This is the expected outcome for hard tasks.**
 - **Timeout**: Task requires many steps, agent ran out of time
-- **Wrong Approach**: Agent tried but couldn't converge on solution
+- **Wrong Approach**: Agent tried reasonable approaches but couldn't find the right solution
 - **Implementation Bugs**: Agent understood task but made coding errors
 - **Context Loss**: Agent forgot earlier context or requirements
 - **Premature Stop**: Agent gave up early or declared success incorrectly
-- **Complexity Overwhelm**: Task is genuinely difficult
+- **Complexity Overwhelm**: Task is genuinely difficult and agent couldn't handle it
+- **Insufficient Exploration**: Agent didn't explore the codebase enough to understand what to change
+- **Incomplete Understanding**: Agent misunderstood the problem or solution space
+
+**Key insight**: If the agent COULD have solved it with more effort, better exploration, or smarter reasoning, it's GOOD_FAILURE even if the task is hard.
 
 ### BAD_FAILURE (Task's Fault - Needs Fix) ⚠️
-Agent failed due to task specification issues:
-- **Underspecified Instruction**: Missing details that tests check for (file names, function signatures, exact formats)
-- **Rigid/Brittle Tests**: Tests check specific strings/formats rather than behavior
-- **Non-deterministic Tests**: Flaky due to timing, race conditions, or randomness
-- **Environment Issues**: Task-specific docker/package problems
-- **Missing File Reference**: Tests expect files not mentioned in instructions
-- **Ambiguous Requirements**: Instructions could be interpreted multiple ways
+Agent failed due to task specification issues.
 
-⚠️ BAD_FAILURE usually affects ALL agents consistently. If multiple agents fail the same way, it's likely a task problem.
+**⚠️ IMPORTANT: The bar for BAD_FAILURE is VERY HIGH. Default to GOOD_FAILURE.**
+
+**Underspecified Instruction** - Information is IMPOSSIBLE to derive:
+- Tests require behavior that is NOT mentioned in instruction AND NOT discoverable from codebase
+- The instruction is actively misleading or contradicts what tests expect
+- Example: Instruction says "validate cookies" but tests ONLY check "authorization" header (completely different requirement)
+
+**NOT underspecified** (classify as GOOD_FAILURE instead):
+- Instruction describes the problem but agent must explore to find which files to change
+- Tests check specific files that a competent developer could identify by investigation
+- Agent needs to understand the codebase structure to implement the fix
+- Example: Instruction says "fix version references" - agent must explore to find go.mod files
+
+**Rigid/Brittle Tests** - Tests reject CORRECT solutions:
+- Tests check exact string matches instead of behavior (e.g., `assert "duplicate" in msg` rejects valid "conflicts with")
+- Tests require specific variable/function names not specified in instruction
+- Agent's solution is FUNCTIONALLY CORRECT but fails due to superficial differences
+- Example: Agent fixes the bug correctly but test fails because it expects specific error message format
+
+**NOT brittle** (classify as GOOD_FAILURE instead):
+- Tests check for the correct behavior and agent's solution doesn't implement it
+- Agent's approach was reasonable but wrong (this is expected for hard tasks)
+
+**Non-deterministic Tests** - Flaky/unpredictable:
+- Tests fail or pass inconsistently due to timing, race conditions, or randomness
+- Tests depend on external state or network conditions
+- Tests have order dependencies
+
+**Environment Issues** - Task-specific setup problems:
+- Missing dependencies, wrong package versions, docker/container problems specific to this task
+- Not general infrastructure failures (those are HARNESS_ERROR)
+
+**Missing File Reference** - Tests expect files not mentioned:
+- Tests check for outputs to files that instruction doesn't specify
+- Tests import modules that instruction doesn't mention needing
+
+**Ambiguous Requirements** - Multiple valid interpretations:
+- Instruction wording allows different correct implementations, but tests only accept one
+- Example: "Handle duplicates" could mean reject, skip, or merge - instruction doesn't specify
+
+⚠️ **KEY SIGNAL FOR BAD_FAILURE:** The agent's solution is FUNCTIONALLY CORRECT but tests reject it for superficial reasons, OR the task requires information that doesn't exist anywhere.
+
+⚠️ **KEY SIGNAL FOR GOOD_FAILURE:** The agent failed to find the right solution, but the information WAS available in the codebase if they had explored more thoroughly.
 
 ### GOOD_SUCCESS (Legitimate Solution)
 Agent correctly solved the task:
@@ -65,30 +159,72 @@ Agent correctly solved the task:
 
 ### BAD_SUCCESS (Cheating/Gaming) ⚠️
 Agent "passed" but through illegitimate means:
-- **Hardcoding**: Agent hardcodes expected outputs instead of solving
-- **Test Inspection**: Agent reads test file and returns exact expected values
-- **Oracle Copying**: Agent reads solution/ directory instead of solving
-- **Minimal Compliance**: Bare minimum to pass without solving actual problem
-- **Tests Too Permissive**: Tests accept trivial/wrong solutions
-- **Task Pre-solved**: Repository already contained the solution
 
-⚠️ BAD_SUCCESS indicates the task doesn't properly evaluate agent capability.
+**Hardcoding** - Agent hardcodes expected outputs:
+- Returns specific values instead of computing them
+- Pattern-matched test cases and hardcoded responses
+- Example: Returns "success" for every input instead of actual validation logic
+
+**Test Inspection** - Agent somehow accessed test files:
+- NOTE: Tests should NOT be visible to agent - if they accessed them, that's an infrastructure issue
+- Look for evidence in trajectory of agent reading test files from unexpected locations
+- Based solution on what tests check rather than instruction requirements
+
+**Oracle Copying** - Agent somehow accessed solution:
+- NOTE: solution/ should NOT be visible to agent - if they accessed it, that's an infrastructure issue
+- Look for evidence in trajectory of agent finding/reading solution files
+- This is rare and indicates a task setup problem, not normal agent cheating
+
+**Minimal Compliance** - Bare minimum to pass:
+- Technically passes tests but doesn't solve the actual problem
+- Only handles the specific test cases, would fail on similar inputs
+- Example: Hardcodes 3 expected values instead of implementing the algorithm
+
+**Tests Too Permissive** - Tests accept bad solutions:
+- Tests don't actually verify the requirement from instruction
+- Tests pass for trivial/wrong implementations
+- Example: Test checks function exists but doesn't verify behavior
+
+**Task Pre-solved** - Solution already present:
+- Repository already contained working code, agent just had to find it
+- Tests pass without any meaningful changes
+
+⚠️ **KEY SIGNAL:** If agent passed but their implementation is suspiciously minimal or hardcodes specific values, classify as BAD_SUCCESS. If they somehow accessed solution/ or tests/ (which should be hidden), note this as an infrastructure concern.
 
 ## How to Analyze
 
-1. **Read the test output** (verifier/test-stdout.txt) - What specifically failed or passed?
-2. **Compare instruction vs tests** - Are tests checking for things NOT in instructions?
-3. **Examine agent trajectory** (agent/) - Did the agent try reasonable approaches?
-4. **Check for cheating patterns** - Did agent look at tests/solution or hardcode?
-5. **Consider consistency** - Would other agents likely have the same outcome?
+1. **Remember agent visibility** - Agent only saw instruction.md + buggy code. No tests, no solution, no patches.
+2. **Read the test output** (verifier/test-stdout.txt) - What specifically failed or passed?
+3. **Compare instruction vs tests** - Are tests checking for things NOT in instructions?
+4. **Examine agent trajectory** (agent/) - Did the agent try reasonable approaches given what they could see?
+5. **Check for cheating patterns** - Did agent hardcode values? (Accessing tests/solution should be impossible)
+6. **Consider consistency** - Would other agents likely have the same outcome?
+7. **Alternative solution test** - Would a different valid approach (that matches instruction) pass the tests?
 
 ## Key Questions for Task Quality
 
-Ask yourself:
-- Could a competent human developer solve this from the instruction alone?
-- Are the tests fair given what's specified?
-- Is there exactly one correct interpretation of the requirements?
-- Would the agent's approach work if the tests were different but instruction-compliant?
+**For BAD_FAILURE (instruction/test problems) - ALL must be true:**
+- Is the required information IMPOSSIBLE to derive from instruction + codebase?
+- Did the agent implement something that is FUNCTIONALLY CORRECT but tests reject it?
+- Would ANY competent developer struggle because the spec is genuinely ambiguous or contradictory?
+
+**For GOOD_FAILURE (task is fine, agent failed) - ANY is sufficient:**
+- Could a skilled developer solve this by exploring the codebase carefully?
+- Is the information technically available but just requires investigation?
+- Did the agent fail to explore enough or make reasoning errors?
+- Is this just a hard problem that requires expertise?
+
+**For BAD_SUCCESS (cheating/too easy):**
+- Did the agent hardcode outputs instead of implementing logic?
+- Could an agent pass by pattern-matching without understanding the problem?
+- Do tests actually verify the requirement or just check superficial things?
+- Is there evidence the agent somehow accessed hidden files? (This shouldn't be possible normally)
+
+**Critical distinction (GOOD vs BAD):**
+- **GOOD_FAILURE**: Agent tried reasonable approaches but couldn't solve it (agent's limitation)
+- **BAD_FAILURE**: Agent tried reasonable approaches but tests rejected valid solutions (task's fault)
+- **GOOD_SUCCESS**: Agent solved it properly by understanding and implementing requirements
+- **BAD_SUCCESS**: Agent "solved" it by cheating, hardcoding, or tests are too permissive
 
 ## Output Format
 

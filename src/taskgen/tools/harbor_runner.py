@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from harbor.models.environment_type import EnvironmentType
@@ -101,8 +102,14 @@ def run_harbor_agent(
     return proc.returncode, job_result
 
 
-def parse_harbor_reward(job_result_path: Path | None) -> int | None:
-    """Parse Harbor job result and return reward (0 or 1) using Harbor's typed models.
+@dataclass(frozen=True)
+class HarborOutcome:
+    reward: int | None
+    error: str | None
+
+
+def parse_harbor_outcome(job_result_path: Path | None) -> HarborOutcome:
+    """Parse Harbor job result and return both reward and error (best-effort).
 
     Uses Harbor's JobResult and TrialResult Pydantic models for type-safe parsing.
     This automatically handles schema changes and provides better error messages.
@@ -111,14 +118,26 @@ def parse_harbor_reward(job_result_path: Path | None) -> int | None:
         job_result_path: Path to the job-level result.json
 
     Returns:
-        Reward value (0 or 1) or None if parsing failed
+        HarborOutcome with:
+        - reward: 0 or 1 (or None if unavailable)
+        - error: best-effort exception message (or None)
     """
     if not job_result_path or not job_result_path.exists():
-        return None
+        return HarborOutcome(reward=None, error=None)
 
     try:
         # Use Harbor's JobResult model for type-safe parsing
         job_result = JobResult.model_validate_json(job_result_path.read_text())
+
+        # Prefer structured exception info from typed trial results.
+        error: str | None = None
+        for trial_result in job_result.trial_results:
+            if getattr(trial_result, "exception_info", None):
+                exc = trial_result.exception_info
+                msg = getattr(exc, "exception_message", None) or getattr(exc, "exception_type", None)
+                if msg:
+                    error = str(msg)
+                    break
 
         # Method 1: Check reward_stats in job stats (fastest)
         if job_result.stats.evals:
@@ -131,36 +150,42 @@ def parse_harbor_reward(job_result_path: Path | None) -> int | None:
 
                 # Check for reward=1 first (oracle success)
                 if 1 in reward_map or 1.0 in reward_map:
-                    return 1
+                    return HarborOutcome(reward=1, error=error)
                 # Then check for reward=0 (nop success)
                 if 0 in reward_map or 0.0 in reward_map:
-                    return 0
+                    return HarborOutcome(reward=0, error=error)
 
         # Method 2: Check trial results directly
         for trial_result in job_result.trial_results:
             if trial_result.verifier_result and trial_result.verifier_result.rewards:
                 reward_value = trial_result.verifier_result.rewards.get("reward")
                 if reward_value is not None:
-                    return int(float(reward_value))
+                    return HarborOutcome(reward=int(float(reward_value)), error=error)
 
         # Method 3: Fallback - scan trial directories using TrialPaths
         job_root = job_result_path.parent
         for trial_dir in (p for p in job_root.iterdir() if p.is_dir()):
             try:
                 trial_paths = TrialPaths(trial_dir)
-                if trial_paths.result_path.exists():
-                    trial_result = TrialResult.model_validate_json(
-                        trial_paths.result_path.read_text()
-                    )
-                    if trial_result.verifier_result and trial_result.verifier_result.rewards:
-                        reward_value = trial_result.verifier_result.rewards.get("reward")
-                        if reward_value is not None:
-                            return int(float(reward_value))
+                if not trial_paths.result_path.exists():
+                    continue
+                trial_result = TrialResult.model_validate_json(trial_paths.result_path.read_text())
+
+                if error is None and getattr(trial_result, "exception_info", None):
+                    exc = trial_result.exception_info
+                    msg = getattr(exc, "exception_message", None) or getattr(exc, "exception_type", None)
+                    if msg:
+                        error = str(msg)
+
+                if trial_result.verifier_result and trial_result.verifier_result.rewards:
+                    reward_value = trial_result.verifier_result.rewards.get("reward")
+                    if reward_value is not None:
+                        return HarborOutcome(reward=int(float(reward_value)), error=error)
             except Exception:
                 # Not a valid trial directory, continue searching
                 continue
 
     except Exception:
-        return None
+        return HarborOutcome(reward=None, error=None)
 
-    return None
+    return HarborOutcome(reward=None, error=error)

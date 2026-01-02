@@ -1,32 +1,37 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 from pathlib import Path
+from typing import Any
 
 from claude_agent_sdk import (
-    AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
-    TextBlock,
+    ResultMessage,
 )
 from harbor.models.trial.result import TrialResult
+from rich.console import Console
+
+from taskgen.create.claude_code_utils import Colors, print_sdk_message
 
 from .models import (
     BaselineResult,
     BaselineValidation,
     Classification,
     TaskVerdict,
+    TaskVerdictModel,
     TrialClassification,
+    TrialClassificationModel,
 )
 
-from rich.console import Console
 
+# Load prompt templates
+_CLASSIFY_PROMPT_PATH = Path(__file__).parent / "classify_prompt.txt"
+_CLASSIFY_PROMPT = _CLASSIFY_PROMPT_PATH.read_text()
 
-# Load prompt template
-_PROMPT_PATH = Path(__file__).parent / "classify_prompt.txt"
-_CLASSIFY_PROMPT = _PROMPT_PATH.read_text()
+_VERDICT_PROMPT_PATH = Path(__file__).parent / "verdict_prompt.txt"
+_VERDICT_PROMPT = _VERDICT_PROMPT_PATH.read_text()
 
 
 class TrialClassifier:
@@ -44,13 +49,19 @@ class TrialClassifier:
     def __init__(
         self,
         model: str = "claude-sonnet-4-20250514",
+        verbose: bool = False,
+        timeout: int = 300,  # 5 minutes per classification
     ):
         """Initialize the classifier.
         
         Args:
             model: Model name for Claude Code (default: claude-sonnet-4-20250514)
+            verbose: If True, stream Claude Code output to console
+            timeout: Maximum time per classification in seconds (default: 300 = 5 min)
         """
         self._model = model
+        self._verbose = verbose
+        self._timeout = timeout
         self._setup_authentication()
     
     def _setup_authentication(self) -> None:
@@ -144,9 +155,15 @@ class TrialClassifier:
             cwd=str(trial_dir),
             add_dirs=[str(task_dir)],
             model=self._model,
+            # Prefer structured output when supported by the SDK/runtime.
+            # This avoids brittle "parse JSON from text" logic entirely.
+            output_format={
+                "type": "json_schema",
+                "schema": TrialClassificationModel.model_json_schema(),
+            },
         )
         
-        response_parts = []
+        structured_output: Any = None
         try:
             # Check for authentication before attempting to classify
             has_auth = bool(os.getenv("CLAUDE_CODE_OAUTH_TOKEN") or os.getenv("ANTHROPIC_API_KEY"))
@@ -156,20 +173,44 @@ class TrialClassifier:
                     "(preferred, run 'claude setup-token') or ANTHROPIC_API_KEY"
                 )
             
-            async with ClaudeSDKClient(options=options) as client:
-                await client.query(prompt)
-                
-                async for message in client.receive_response():
-                    if isinstance(message, AssistantMessage):
-                        for block in message.content:
-                            if isinstance(block, TextBlock):
-                                response_parts.append(block.text)
+            if self._verbose:
+                print(f"{Colors.YELLOW}[Classifier] Running Claude Code classification (timeout: {self._timeout}s)...{Colors.RESET}", flush=True)
+                print(f"{Colors.YELLOW}[Classifier] Trial: {trial_dir.name}{Colors.RESET}", flush=True)
+                print(f"{Colors.YELLOW}[Classifier] Task: {task_dir.name}{Colors.RESET}", flush=True)
+                print("-" * 60, flush=True)
             
-            response_text = "\n".join(response_parts)
+            # Run with timeout
+            try:
+                async with asyncio.timeout(self._timeout):
+                    async with ClaudeSDKClient(options=options) as client:
+                        await client.query(prompt)
+                        
+                        async for message in client.receive_response():
+                            if self._verbose:
+                                print_sdk_message(message)
+                            if isinstance(message, ResultMessage):
+                                structured_output = message.structured_output
+            except TimeoutError:
+                if self._verbose:
+                    print(f"{Colors.RED}[Classifier] Timed out after {self._timeout}s{Colors.RESET}", flush=True)
+                return TrialClassification(
+                    trial_name=trial_dir.name,
+                    classification=Classification.HARNESS_ERROR,
+                    subtype="Timeout",
+                    evidence=f"Classification timed out after {self._timeout} seconds",
+                    root_cause="Claude Code classification exceeded time limit",
+                    recommendation="Review trial manually or increase timeout",
+                    reward=reward,
+                )
             
-            # Parse JSON from response
-            classification = self._parse_response(response_text, trial_dir.name, reward)
-            return classification
+            if structured_output is None:
+                raise RuntimeError("Claude Agent SDK did not return structured_output for this request")
+            
+            if self._verbose:
+                print("-" * 60, flush=True)
+                print(f"{Colors.GREEN}[Classifier] Classification complete for {trial_dir.name}{Colors.RESET}", flush=True)
+            
+            return self._parse_trial_classification_structured(structured_output, trial_dir.name, reward)
             
         except Exception as e:
             # Fallback classification based on reward
@@ -193,68 +234,52 @@ class TrialClassifier:
                 reward=reward,
             )
     
-    def _parse_response(
+    def _parse_trial_classification_structured(
         self,
-        response_text: str,
+        structured_output: Any,
         trial_name: str,
         reward: float | None,
     ) -> TrialClassification:
-        """Parse JSON classification from Claude's response."""
-        # Try to extract JSON from response
-        # Claude might include markdown or explanation around the JSON
-        json_str = response_text.strip()
-        
-        # Try to find JSON object in response
-        start_idx = json_str.find("{")
-        end_idx = json_str.rfind("}") + 1
-        
-        if start_idx != -1 and end_idx > start_idx:
-            json_str = json_str[start_idx:end_idx]
-        
+        """Parse and validate structured classification output (preferred path)."""
         try:
-            data = json.loads(json_str)
-            
-            # Handle nested response formats
-            if "structured_output" in data:
-                data = data["structured_output"]
-            elif "result" in data and data["result"]:
-                data = data["result"]
-            
-            # Normalize classification string (handle spaces)
-            classification_str = data.get("classification", "").replace(" ", "_").upper()
-            
-            # Map to enum
-            classification_map = {
-                "HARNESS_ERROR": Classification.HARNESS_ERROR,
-                "GOOD_FAILURE": Classification.GOOD_FAILURE,
-                "BAD_FAILURE": Classification.BAD_FAILURE,
-                "GOOD_SUCCESS": Classification.GOOD_SUCCESS,
-                "BAD_SUCCESS": Classification.BAD_SUCCESS,
-            }
-            
-            classification = classification_map.get(
-                classification_str,
-                Classification.HARNESS_ERROR
+            data: Any = structured_output
+
+            # Allow mild nesting from some SDK wrappers
+            if isinstance(data, dict):
+                if "structured_output" in data and isinstance(data["structured_output"], dict):
+                    data = data["structured_output"]
+                if "result" in data and isinstance(data["result"], dict):
+                    data = data["result"]
+
+            model = TrialClassificationModel.model_validate(data)
+            classification = TrialClassification.from_model(
+                trial_name=trial_name, model=model, reward=reward
             )
-            
-            return TrialClassification(
-                trial_name=trial_name,
-                classification=classification,
-                subtype=data.get("subtype", "Unknown"),
-                evidence=data.get("evidence", ""),
-                root_cause=data.get("root_cause", ""),
-                recommendation=data.get("recommendation", ""),
-                reward=reward,
-            )
-            
-        except json.JSONDecodeError:
-            # Couldn't parse JSON - create error classification
+
+            # Enforce classification/result consistency (defensive)
+            if reward == 1.0 and not classification.classification.is_success:
+                classification.classification = Classification.BAD_SUCCESS
+                classification.subtype = "Inconsistent Output"
+                classification.evidence = (
+                    f"Claude returned {model.classification} but verified result was pass (reward=1.0). "
+                    + classification.evidence
+                ).strip()
+            if reward == 0.0 and classification.classification.is_success:
+                classification.classification = Classification.HARNESS_ERROR
+                classification.subtype = "Inconsistent Output"
+                classification.evidence = (
+                    f"Claude returned {model.classification} but verified result was fail (reward=0.0). "
+                    + classification.evidence
+                ).strip()
+
+            return classification
+        except Exception as e:
             return TrialClassification(
                 trial_name=trial_name,
                 classification=Classification.HARNESS_ERROR,
                 subtype="Parse Error",
-                evidence=f"Could not parse JSON from response: {response_text[:500]}",
-                root_cause="Claude's response was not valid JSON",
+                evidence=f"Could not parse structured output: {e}",
+                root_cause="Claude's structured output did not match expected schema",
                 recommendation="Review trial manually",
                 reward=reward,
             )
@@ -319,20 +344,28 @@ class TrialClassifier:
         return asyncio.run(self.classify_trials(trial_dirs, task_dir, console))
 
 
-def compute_task_verdict(
+async def compute_task_verdict_with_llm(
     classifications: list[TrialClassification],
     baseline: BaselineValidation | None = None,
     quality_check_passed: bool = True,
+    model: str = "claude-sonnet-4-20250514",
+    console: "Console | None" = None,
+    verbose: bool = False,
+    timeout: int = 180,  # 3 minutes for verdict synthesis
 ) -> TaskVerdict:
-    """Compute overall task verdict from trial classifications.
+    """Compute task verdict using LLM to synthesize trial analyses.
     
     Args:
-        classifications: List of trial classifications
+        classifications: List of individual trial classifications
         baseline: Optional baseline validation results
         quality_check_passed: Whether static quality check passed
+        model: Model name for Claude Code
+        console: Optional console for progress output
+        verbose: If True, stream Claude Code output to console
+        timeout: Maximum time for verdict synthesis in seconds (default: 180 = 3 min)
         
     Returns:
-        TaskVerdict with is_good, confidence, and recommendations
+        TaskVerdict with LLM-synthesized analysis
     """
     if not classifications:
         return TaskVerdict(
@@ -342,85 +375,174 @@ def compute_task_verdict(
             recommendations=["Run agent trials first"],
         )
     
-    # Count by category
-    task_problems = [c for c in classifications if c.is_task_problem]
-    agent_problems = [c for c in classifications if c.classification == Classification.GOOD_FAILURE]
-    successes = [c for c in classifications if c.classification == Classification.GOOD_SUCCESS]
-    bad_successes = [c for c in classifications if c.classification == Classification.BAD_SUCCESS]
-    harness_errors = [c for c in classifications if c.classification == Classification.HARNESS_ERROR]
-    
-    # Collect unique recommendations from task problems
-    recommendations = []
-    seen_recs = set()
-    for c in task_problems:
-        if c.recommendation and c.recommendation != "N/A - task is fine":
-            rec = c.recommendation.strip()
-            if rec not in seen_recs:
-                recommendations.append(rec)
-                seen_recs.add(rec)
-    
-    # Determine verdict
-    is_good = True
-    primary_issue = None
-    confidence = "high"
-    
-    # Check baseline first
-    if baseline and not baseline.is_valid:
-        is_good = False
-        primary_issue = baseline.issues[0] if baseline.issues else "Baseline validation failed"
-        recommendations = baseline.issues + recommendations
-    
-    # Check for task problems
-    elif len(task_problems) > 0:
-        is_good = False
-        # Find most common subtype
-        subtype_counts: dict[str, int] = {}
-        for c in task_problems:
-            subtype_counts[c.subtype] = subtype_counts.get(c.subtype, 0) + 1
-        most_common = max(subtype_counts, key=lambda k: subtype_counts[k])
-        primary_issue = f"{len(task_problems)}/{len(classifications)} trials indicate task problem: {most_common}"
-        
-        # Confidence based on consistency
-        if len(task_problems) == len(classifications):
-            confidence = "high"
-        elif len(task_problems) > len(classifications) / 2:
-            confidence = "medium"
+    # Format baseline summary
+    if baseline:
+        if baseline.is_valid:
+            baseline_summary = "✓ Passed (nop failed as expected, oracle passed as expected)"
         else:
-            confidence = "low"
+            baseline_summary = "✗ FAILED:\n" + "\n".join(f"  - {issue}" for issue in baseline.issues)
+    else:
+        baseline_summary = "Not run"
     
-    # Check for bad successes (cheating)
-    elif len(bad_successes) > 0:
-        is_good = False
-        primary_issue = f"{len(bad_successes)} trial(s) show potential cheating or over-permissive tests"
-        confidence = "medium"
+    # Format quality check summary
+    quality_check_summary = "✓ Passed" if quality_check_passed else "✗ Failed"
     
-    # Check success rate
-    elif len(successes) == 0 and len(agent_problems) > 0:
-        # All failures but classified as agent problems
-        is_good = True  # Task might be fine, just hard
-        primary_issue = None
-        confidence = "medium"  # Lower confidence since no successes
-        recommendations.append("Consider if task difficulty is appropriate - no successes in trials")
+    # Format trial classifications
+    trial_lines = []
+    for i, c in enumerate(classifications, 1):
+        trial_lines.append(f"""Trial {i}: {c.trial_name}
+  Classification: {c.classification.value}
+  Subtype: {c.subtype}
+  Reward: {c.reward}
+  Evidence: {c.evidence}
+  Root Cause: {c.root_cause}
+  Recommendation: {c.recommendation}
+""")
+    trial_classifications = "\n".join(trial_lines)
     
-    # Static quality check
-    if not quality_check_passed and is_good:
-        is_good = False
-        primary_issue = primary_issue or "Static quality check failed"
-        confidence = "medium"
+    # Build prompt
+    prompt = _VERDICT_PROMPT.format(
+        num_trials=len(classifications),
+        baseline_summary=baseline_summary,
+        quality_check_summary=quality_check_summary,
+        trial_classifications=trial_classifications,
+    )
+    
+    if console:
+        console.print("  [dim]Synthesizing verdict with LLM...[/dim]")
+    
+    # Run Claude Code with simple query (no file access needed)
+    options = ClaudeAgentOptions(
+        permission_mode="bypassPermissions",
+        allowed_tools=[],  # No file access needed
+        model=model,
+        output_format={
+            "type": "json_schema",
+            "schema": TaskVerdictModel.model_json_schema(),
+        },
+    )
+    
+    # Check for authentication
+    has_auth = bool(os.getenv("CLAUDE_CODE_OAUTH_TOKEN") or os.getenv("ANTHROPIC_API_KEY"))
+    if not has_auth:
+        raise RuntimeError(
+            "No Claude authentication configured for verdict synthesis. "
+            "Set either CLAUDE_CODE_OAUTH_TOKEN (preferred, run 'claude setup-token') "
+            "or ANTHROPIC_API_KEY"
+        )
+    
+    if verbose:
+        print(f"\n{Colors.YELLOW}[Verdict] Synthesizing task verdict with LLM (timeout: {timeout}s)...{Colors.RESET}", flush=True)
+        print("-" * 60, flush=True)
+    
+    structured_output: Any = None
+    try:
+        async with asyncio.timeout(timeout):
+            async with ClaudeSDKClient(options=options) as client:
+                await client.query(prompt)
+                
+                async for message in client.receive_response():
+                    if verbose:
+                        print_sdk_message(message)
+                    if isinstance(message, ResultMessage):
+                        structured_output = message.structured_output
+        
+        if verbose:
+            print("-" * 60, flush=True)
+            print(f"{Colors.GREEN}[Verdict] Verdict synthesis complete{Colors.RESET}\n", flush=True)
+    except TimeoutError:
+        if verbose:
+            print("-" * 60, flush=True)
+            print(f"{Colors.RED}[Verdict] Timed out after {timeout}s{Colors.RESET}\n", flush=True)
+        # Return a fallback verdict based on simple heuristics
+        if console:
+            console.print(f"  [yellow]⚠ Verdict synthesis timed out, using fallback heuristics[/yellow]")
+        
+        task_problem_count = sum(1 for c in classifications if c.is_task_problem)
+        return TaskVerdict(
+            is_good=task_problem_count == 0,
+            confidence="low",
+            primary_issue=f"Verdict synthesis timed out ({task_problem_count} task problems detected)",
+            recommendations=["Retry analysis with increased timeout", "Review trial classifications manually"],
+            task_problem_count=task_problem_count,
+            agent_problem_count=sum(1 for c in classifications if c.classification == Classification.GOOD_FAILURE),
+            success_count=sum(1 for c in classifications if c.classification in (Classification.GOOD_SUCCESS, Classification.BAD_SUCCESS)),
+            harness_error_count=sum(1 for c in classifications if c.classification == Classification.HARNESS_ERROR),
+            classifications=classifications,
+            baseline=baseline,
+        )
+    
+    if structured_output is None:
+        raise RuntimeError("Claude Agent SDK did not return structured_output for verdict synthesis")
+    verdict_model = _parse_verdict_structured(structured_output)
+    
+    # Build TaskVerdict from LLM response
+    task_problem_count = sum(1 for c in classifications if c.is_task_problem)
+    agent_problem_count = sum(1 for c in classifications if c.classification == Classification.GOOD_FAILURE)
+    success_count = sum(1 for c in classifications if c.classification in (Classification.GOOD_SUCCESS, Classification.BAD_SUCCESS))
+    harness_error_count = sum(1 for c in classifications if c.classification == Classification.HARNESS_ERROR)
     
     return TaskVerdict(
-        is_good=is_good,
-        confidence=confidence,
-        primary_issue=primary_issue,
-        recommendations=recommendations[:5],  # Top 5 recommendations
-        task_problem_count=len(task_problems),
-        agent_problem_count=len(agent_problems),
-        success_count=len(successes) + len(bad_successes),
-        harness_error_count=len(harness_errors),
+        is_good=verdict_model.is_good,
+        confidence=verdict_model.confidence,
+        primary_issue=verdict_model.primary_issue,
+        recommendations=verdict_model.recommendations,
+        task_problem_count=task_problem_count,
+        agent_problem_count=agent_problem_count,
+        success_count=success_count,
+        harness_error_count=harness_error_count,
         classifications=classifications,
         baseline=baseline,
     )
 
+def _parse_verdict_structured(structured_output: Any) -> TaskVerdictModel:
+    """Parse and validate verdict from SDK structured output (preferred path)."""
+    data: Any = structured_output
+    if isinstance(data, dict):
+        if "verdict" in data and isinstance(data["verdict"], dict):
+            data = data["verdict"]
+        if "result" in data and isinstance(data["result"], dict):
+            data = data["result"]
+        if "structured_output" in data and isinstance(data["structured_output"], dict):
+            data = data["structured_output"]
+    return TaskVerdictModel.model_validate(data)
+
+
+def compute_task_verdict(
+    classifications: list[TrialClassification],
+    baseline: BaselineValidation | None = None,
+    quality_check_passed: bool = True,
+    model: str = "claude-sonnet-4-20250514",
+    console: "Console | None" = None,
+    verbose: bool = False,
+    timeout: int = 180,
+) -> TaskVerdict:
+    """Compute overall task verdict from trial classifications using LLM synthesis.
+    
+    Uses Claude to intelligently synthesize individual trial analyses into a final verdict.
+    Performs pattern recognition, root cause analysis, and generates actionable recommendations.
+    
+    Args:
+        classifications: List of trial classifications
+        baseline: Optional baseline validation results
+        quality_check_passed: Whether static quality check passed
+        model: Model name for Claude synthesis (default: claude-sonnet-4-20250514)
+        console: Optional console for progress output
+        verbose: If True, stream Claude Code output to console
+        timeout: Maximum time for verdict synthesis in seconds (default: 180 = 3 min)
+        
+    Returns:
+        TaskVerdict with is_good, confidence, and recommendations
+        
+    Raises:
+        RuntimeError: If no Claude authentication is configured
+    """
+    # Use async LLM-based synthesis
+    return asyncio.run(
+        compute_task_verdict_with_llm(
+            classifications, baseline, quality_check_passed, model, console, verbose, timeout
+        )
+    )
 
 def classify_baseline_result(
     agent: str,

@@ -110,9 +110,16 @@ src/taskgen/
 │   ├── task_skeleton.py    # Language-agnostic skeleton generation
 │   ├── task_instruction.py # PR evaluation and instruction generation
 │   ├── claude_code_runner.py   # Claude Code integration
+│   ├── claude_code_utils.py    # Claude Code utilities
 │   ├── task_reference.py   # Cache successful tasks for reuse
 │   ├── diff_utils.py       # Git diff utilities
 │   └── utils.py            # Utility functions and test file detection
+├── analyze/                # Task quality analysis
+│   ├── run.py              # run_analyze() - main analysis orchestrator
+│   ├── classifier.py       # AI-powered failure classification
+│   ├── models.py           # Pydantic models for analysis
+│   ├── classify_prompt.txt # Prompt for failure classification
+│   └── verdict_prompt.txt  # Prompt for solution verdict
 ├── farm/                   # Continuous PR farming
 │   ├── stream_farm.py      # StreamFarmer - main farming loop
 │   ├── farm_hand.py        # Per-PR processing logic
@@ -120,7 +127,6 @@ src/taskgen/
 │   └── state.py            # StreamState - persistence for resumability
 └── tools/                  # Utility tools
     ├── validate.py         # Harbor NOP/Oracle validation
-    ├── analyze.py          # Task quality analysis
     ├── harbor_runner.py    # Harbor CLI wrapper
     ├── validation.py       # Validation helpers
     ├── network_isolation.py    # Network-isolated testing
@@ -256,14 +262,21 @@ Runs Harbor NOP and Oracle agents:
 
 Supports batch mode for validating multiple tasks in parallel.
 
-### Analysis (`analyze.py`)
+### Analysis (`analyze/`)
 
-Comprehensive task quality analysis:
+Comprehensive task quality analysis module:
 1. Static quality check (Harbor's checker)
 2. Multiple agent trials (default: 3)
-3. Failure summarization
+3. AI-powered failure classification and summarization
 4. Instruction sufficiency check
 5. Solution variance analysis
+
+Components:
+- **run.py** - Main analysis orchestrator
+- **classifier.py** - AI-powered failure analysis using structured outputs
+- **models.py** - Pydantic models for analysis results
+- **classify_prompt.txt** - Prompt template for failure classification
+- **verdict_prompt.txt** - Prompt template for solution verdict
 
 ### Harbor Runner (`harbor_runner.py`)
 

@@ -17,7 +17,7 @@ from rich.text import Text
 from rich.traceback import install as rich_traceback_install
 
 from taskgen.config import CreateConfig
-from taskgen.tools.harbor_runner import parse_harbor_reward, run_harbor_agent
+from taskgen.tools.harbor_runner import parse_harbor_outcome, run_harbor_agent
 from taskgen.tools.network_isolation import network_isolation
 from taskgen.tools.validation import ValidationError, run_nop_oracle
 
@@ -652,8 +652,8 @@ def run_reversal(config: CreateConfig) -> None:
                     environment=config.environment,
                 )
 
-            reward_nop_no_net = parse_harbor_reward(harbor_nop_no_net_job)
-            reward_oracle_no_net = parse_harbor_reward(harbor_oracle_no_net_job)
+            reward_nop_no_net = parse_harbor_outcome(harbor_nop_no_net_job).reward
+            reward_oracle_no_net = parse_harbor_outcome(harbor_oracle_no_net_job).reward
             harbor_nop_no_net_job_dir = (
                 str(harbor_nop_no_net_job.parent) if harbor_nop_no_net_job else None
             )

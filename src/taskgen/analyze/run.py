@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from harbor.models.trial.result import TrialResult
+from harbor.models.environment_type import EnvironmentType
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
@@ -24,7 +25,11 @@ from .classifier import (
     classify_baseline_result,
     compute_task_verdict,
 )
-from taskgen.tools.harbor_runner import harbor_cmd_base
+from taskgen.tools.harbor_runner import (
+    harbor_cmd_base,
+    parse_harbor_outcome,
+    run_harbor_agent,
+)
 
 
 def _setup_claude_auth_preference(console: Console) -> None:
@@ -120,6 +125,8 @@ class AnalyzeArgs:
     environment: str = "docker"  # Environment type (docker|daytona|e2b|modal|runloop|gke)
     verbose: bool = False
     timeout_multiplier: float = 1.0
+    classification_timeout: int = 300  # Timeout per classification in seconds (5 min default)
+    verdict_timeout: int = 180  # Timeout for verdict synthesis in seconds (3 min default)
 
 
 def run_analyze(args: AnalyzeArgs) -> AnalysisResult:
@@ -177,7 +184,11 @@ def _run_analysis(
     else:
         console.print("\n[dim]Step 1/4: Static Quality Check (skipped)[/dim]")
 
-    # Step 2: Baseline validation (NEW)
+    # Step 2: Baseline validation (necessary but not sufficient)
+    # Oracle/nop prove the task is technically solvable and requires changes,
+    # but they can't detect: underspecified instructions, overspecified tests,
+    # ambiguous requirements, or tests checking details not in instructions.
+    # That's what the trial classification step (Step 4) is for.
     baseline = None
     if not args.skip_baseline:
         console.print("\n[bold blue]Step 2/4: Baseline Validation (nop/oracle)[/bold blue]")
@@ -197,16 +208,26 @@ def _run_analysis(
     console.print(f"  Results: {successes} passed, {failures} failed, {errors} errors")
     console.print(f"  Success rate: {success_rate:.1%}")
 
-    # Step 4: Classify trials (NEW - replaces summarize)
+    # Step 4: Classify trials (detects issues baseline validation can't catch)
+    # Each trial is classified independently to identify:
+    # - Underspecified instructions (agent lacks critical details)
+    # - Overspecified/brittle tests (tests coupled to specific implementation)
+    # - Ambiguous requirements (multiple valid interpretations)
+    # - Tests checking for details not mentioned in instructions
+    # Then we aggregate across trials to detect systematic vs random issues.
     classifications: list[TrialClassification] = []
     if not args.skip_classify and trial_outcomes:
         console.print("\n[bold blue]Step 4/4: Classifying Trial Outcomes[/bold blue]")
         
-        # Get trial directories for failed trials (and optionally all)
+        # Get trial directories for classification
         trial_dirs = [t.trial_dir for t in trial_outcomes if t.trial_dir.exists()]
         
         if trial_dirs:
-            classifier = TrialClassifier(model=args.analysis_model)
+            classifier = TrialClassifier(
+                model=args.analysis_model,
+                verbose=args.verbose,
+                timeout=args.classification_timeout,
+            )
             classifications = classifier.classify_trials_sync(trial_dirs, task_path, console)
             
             # Show classification summary
@@ -222,9 +243,17 @@ def _run_analysis(
     else:
         console.print("\n[dim]Step 4/4: Classifying Trial Outcomes (skipped)[/dim]")
 
-    # Compute task verdict
+    # Compute task verdict (uses LLM synthesis)
     quality_passed = quality_check is None or quality_check.passed
-    verdict = compute_task_verdict(classifications, baseline, quality_passed)
+    verdict = compute_task_verdict(
+        classifications,
+        baseline,
+        quality_passed,
+        model=args.analysis_model,
+        console=console,
+        verbose=args.verbose,
+        timeout=args.verdict_timeout,
+    )
 
     return AnalysisResult(
         task_id=task_id,
@@ -298,12 +327,31 @@ def _run_baseline_validation(
     jobs_parent.mkdir(parents=True, exist_ok=True)
     
     baseline = BaselineValidation()
+    env = EnvironmentType(args.environment)
     
     # Run nop agent (should fail - reward=0)
     console.print("  Running nop agent (should fail)...")
-    nop_reward, nop_error = _run_single_agent(
-        task_id, dataset_path, "nop", jobs_parent, args.timeout_multiplier, args.environment
+    nop_code, nop_job = run_harbor_agent(
+        task_id,
+        dataset_path,
+        jobs_parent,
+        "nop",
+        args.timeout_multiplier,
+        capture_output=True,
+        # Keep image when we will immediately run oracle; oracle will cleanup.
+        delete_after=False,
+        environment=env,
     )
+    nop_outcome = parse_harbor_outcome(nop_job)
+    nop_reward = nop_outcome.reward
+    nop_error = nop_outcome.error
+    if nop_error is None and nop_reward is None:
+        if nop_job is None:
+            nop_error = "No Harbor job result found"
+        elif nop_code != 0:
+            nop_error = f"Harbor exited with code {nop_code}"
+        else:
+            nop_error = "Could not parse reward from Harbor job result"
     baseline.nop = classify_baseline_result("nop", nop_reward, nop_error)
     
     if baseline.nop.is_expected:
@@ -313,9 +361,26 @@ def _run_baseline_validation(
     
     # Run oracle agent (should pass - reward=1)
     console.print("  Running oracle agent (should pass)...")
-    oracle_reward, oracle_error = _run_single_agent(
-        task_id, dataset_path, "oracle", jobs_parent, args.timeout_multiplier, args.environment
+    oracle_code, oracle_job = run_harbor_agent(
+        task_id,
+        dataset_path,
+        jobs_parent,
+        "oracle",
+        args.timeout_multiplier,
+        capture_output=True,
+        delete_after=True,
+        environment=env,
     )
+    oracle_outcome = parse_harbor_outcome(oracle_job)
+    oracle_reward = oracle_outcome.reward
+    oracle_error = oracle_outcome.error
+    if oracle_error is None and oracle_reward is None:
+        if oracle_job is None:
+            oracle_error = "No Harbor job result found"
+        elif oracle_code != 0:
+            oracle_error = f"Harbor exited with code {oracle_code}"
+        else:
+            oracle_error = "Could not parse reward from Harbor job result"
     baseline.oracle = classify_baseline_result("oracle", oracle_reward, oracle_error)
     
     if baseline.oracle.is_expected:
@@ -324,61 +389,6 @@ def _run_baseline_validation(
         console.print("    [red]✗ CRITICAL: oracle failed - reference solution broken![/red]")
     
     return baseline
-
-
-def _run_single_agent(
-    task_id: str,
-    dataset_path: Path,
-    agent: str,
-    jobs_dir: Path,
-    timeout_multiplier: float,
-    environment: str,
-) -> tuple[float | None, str | None]:
-    """Run a single agent and return (reward, error)."""
-    cmd = harbor_cmd_base() + [
-        "run",
-        "-p", str(dataset_path),
-        "-t", task_id,
-        "-a", agent,
-        "-k", "1",
-        "-n", "1",
-        "-e", environment,
-        "--jobs-dir", str(jobs_dir),
-        "--timeout-multiplier", str(timeout_multiplier),
-    ]
-    
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    
-    # Find the job directory that was created
-    job_dirs = sorted(
-        [d for d in jobs_dir.iterdir() if d.is_dir()],
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    
-    if not job_dirs:
-        return None, "No job directory created"
-    
-    # Find trial result
-    job_dir = job_dirs[0]
-    for trial_dir in job_dir.iterdir():
-        if not trial_dir.is_dir():
-            continue
-        result_path = trial_dir / "result.json"
-        if result_path.exists():
-            try:
-                result = TrialResult.model_validate_json(result_path.read_text())
-                reward = None
-                if result.verifier_result and result.verifier_result.rewards:
-                    reward = result.verifier_result.rewards.get("reward")
-                error = None
-                if result.exception_info:
-                    error = result.exception_info.exception_message
-                return reward, error
-            except Exception as e:
-                return None, str(e)
-    
-    return None, "No trial result found"
 
 
 def _run_agent_trials(
@@ -392,6 +402,9 @@ def _run_agent_trials(
     _timestamp = int(time.time())
     jobs_parent = args.jobs_dir.resolve()
     jobs_parent.mkdir(parents=True, exist_ok=True)
+    unique_parent = jobs_parent / f"{task_id}.{args.agent}.{_timestamp}"
+    unique_parent.mkdir(parents=True, exist_ok=True)
+    before = set(unique_parent.iterdir())
 
     cmd = harbor_cmd_base() + [
         "run",
@@ -402,7 +415,7 @@ def _run_agent_trials(
         "-k", str(args.n_trials),
         "-n", str(args.n_concurrent),  # Matches Harbor's -n flag
         "-e", args.environment,
-        "--jobs-dir", str(jobs_parent),
+        "--jobs-dir", str(unique_parent),
         "--timeout-multiplier", str(args.timeout_multiplier),
     ]
 
@@ -421,13 +434,10 @@ def _run_agent_trials(
         _proc = subprocess.run(cmd, capture_output=True, text=True)
         progress.update(task, completed=True)
 
-    # Find the job directory that was created
-    job_dirs = sorted(
-        [d for d in jobs_parent.iterdir() if d.is_dir()],
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-
+    # Find the job directory that was created inside unique_parent
+    after = set(unique_parent.iterdir()) if unique_parent.exists() else set()
+    new_dirs = [p for p in (after - before) if p.is_dir()]
+    job_dirs = sorted(new_dirs, key=lambda p: p.stat().st_mtime, reverse=True)
     job_dir = job_dirs[0] if job_dirs else None
 
     # Parse trial results
@@ -605,7 +615,7 @@ def _print_report(result: AnalysisResult, console: Console) -> None:
                 style = "dim"
             
             console.print(f"\n  [{style}]{icon} {c.trial_name}: {c.classification.value} - {c.subtype}[/{style}]")
-            console.print(f"     [dim]Evidence:[/dim] {c.evidence[:100]}...")
+            console.print(f"     [dim]Evidence:[/dim] {c.evidence}")
             console.print(f"     [dim]Root cause:[/dim] {c.root_cause}")
             if c.is_task_problem and c.recommendation != "N/A - task is fine":
                 console.print(f"     [yellow]Recommendation:[/yellow] {c.recommendation}")

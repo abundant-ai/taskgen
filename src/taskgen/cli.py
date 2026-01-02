@@ -230,7 +230,7 @@ def analyze(
         3, "-k", "--n-trials", help="Number of trials to run", show_default=True
     ),
     n_concurrent: int = typer.Option(
-        1, "-n", "--n-concurrent", help="Number of concurrent trials (1=sequential, 3-5 recommended)", show_default=True
+        3, "-n", "--n-concurrent", help="Number of concurrent trials (1=sequential, 3-5 recommended)", show_default=True
     ),
     jobs_dir: Path = typer.Option(
         Path(".state/analyze-jobs"),
@@ -264,6 +264,18 @@ def analyze(
         show_default=True,
     ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Increase output verbosity"),
+    classification_timeout: int = typer.Option(
+        300,
+        "--classification-timeout",
+        help="Timeout per trial classification in seconds",
+        show_default=True,
+    ),
+    verdict_timeout: int = typer.Option(
+        180,
+        "--verdict-timeout",
+        help="Timeout for verdict synthesis in seconds",
+        show_default=True,
+    ),
 ) -> None:
     """
     Analyze a Harbor task to determine if it's well-specified.
@@ -309,6 +321,8 @@ def analyze(
             environment=environment,
             timeout_multiplier=timeout_multiplier,
             verbose=verbose,
+            classification_timeout=classification_timeout,
+            verdict_timeout=verdict_timeout,
         )
     )
 

@@ -1,0 +1,126 @@
+You are synthesizing multiple independent trial analyses into a final task quality verdict.
+
+## Critical Calibration: Hard Tasks are GOOD
+
+**Hard tasks with low pass rates are DESIRABLE for benchmarks.** A 20-40% pass rate indicates a well-calibrated task. Do NOT penalize tasks for being difficult.
+
+- 0% pass rate: Could be too hard OR could be a task problem (investigate)
+- 10-40% pass rate: IDEAL for benchmark tasks - challenging but solvable
+- 50-70% pass rate: Good but possibly too easy
+- 80-100% pass rate: Too easy for benchmarking (unless intended)
+
+**Failures are EXPECTED.** The default classification for failures should be GOOD_FAILURE (agent's fault) unless there's strong evidence the task itself is broken.
+
+## Context
+
+You have {num_trials} trial runs of the same Harbor task. Each trial was run independently with the same agent, and each trial was classified separately by analyzing its artifacts.
+
+**Baseline Validation:**
+{baseline_summary}
+
+**Static Quality Check:**
+{quality_check_summary}
+
+## Individual Trial Classifications
+
+{trial_classifications}
+
+## Your Goal
+
+Synthesize these independent analyses into a **final verdict** on the task quality.
+
+Consider:
+1. **Pattern Recognition**: Are failures consistent (same root cause) or diverse (multiple issues)?
+2. **Signal vs Noise**: Do task problems appear across multiple trials (strong signal) or just one (possible noise)?
+3. **Root Cause**: What is the PRIMARY issue that best explains the overall pattern?
+4. **Confidence**: How confident are you based on consistency and baseline validation?
+5. **Actionability**: What are the most important fixes needed (if any)?
+6. **Solvability**: Did ANY trial succeed? If yes, the task IS solvable - failures are agent variance.
+7. **Over-classification check**: Is "Underspecified Instruction" just meaning "task is hard"? That's not a problem.
+
+## Classification Categories
+
+**Task problems** (need fixing):
+- BAD_FAILURE: Task specification issues (underspecified instruction, brittle tests, ambiguous requirements, etc.)
+- BAD_SUCCESS: Cheating/gaming (hardcoding, test inspection, oracle copying, tests too permissive)
+
+**Normal outcomes** (task is fine):
+- GOOD_SUCCESS: Agent solved it legitimately
+- GOOD_FAILURE: Agent couldn't solve it due to agent limitations (timeout, wrong approach, complexity, etc.)
+- HARNESS_ERROR: Infrastructure issues (not task's fault)
+
+## Confidence Levels
+
+- **high**: All trials agree OR baseline validation critical failure OR clear consistent pattern
+- **medium**: Majority of trials agree (>50%) OR mixed signals but leaning one way OR no successes but failures look legitimate
+- **low**: Trials disagree OR unclear pattern OR only harness errors
+
+## Decision Logic
+
+**Default assumption: Task is GOOD.** Only mark as bad with strong evidence.
+
+1. **Critical baseline failures** → is_good=false, high confidence
+   - If nop passed: "task may be pre-solved"
+   - If oracle failed: "reference solution doesn't work"
+
+2. **Consistent STRONG task problems** → is_good=false
+   - Majority (>50%) show the SAME BAD_FAILURE subtype with clear evidence → medium confidence
+   - All trials show task problems AND evidence is compelling → high confidence
+   - NOTE: "Underspecified Instruction" alone is often OVER-diagnosed. Scrutinize this carefully.
+
+3. **Some successes, mixed failures** → is_good=true, medium-high confidence
+   - Having ANY success means the task IS solvable
+   - Mixed failures are normal for hard tasks
+
+4. **All failures but mostly GOOD_FAILURE** → is_good=true, medium confidence
+   - Task is hard but not broken
+   - This is the IDEAL outcome for a challenging benchmark task
+
+5. **Mix of GOOD_FAILURE and scattered BAD_FAILURE** → is_good=true, medium confidence
+   - Isolated BAD_FAILURE classifications may be noise/over-classification
+   - Default to trusting the task unless pattern is clear
+
+6. **Any successes** → is_good=true, medium-high confidence
+   - Task is clearly solvable
+
+## Primary Issue Format
+
+If is_good=false, write a clear primary issue:
+- For consistent problem: "{{count}}/{{total}} trials show: {{most_common_subtype}} - {{brief_explanation}}"
+- For diverse problems: "{{count}}/{{total}} trials show task issues: {{list_of_problems}}"
+- For baseline: "CRITICAL: {{baseline_issue}}"
+
+If is_good=true:
+- null (or omit)
+
+## Recommendations
+
+For BAD tasks, provide 3-5 **specific, actionable** recommendations:
+- Prioritize issues that appeared in multiple trials
+- Focus on fixes that address the root cause
+- Be concrete (e.g., "Add file path to instruction.md line 15" not "improve instructions")
+- Deduplicate similar recommendations across trials
+
+For GOOD tasks, recommendations should be empty or minor suggestions.
+
+## Output Format
+
+Return ONLY valid JSON (no markdown, no code blocks, no explanation):
+
+{{
+  "is_good": true/false,
+  "confidence": "high" | "medium" | "low",
+  "primary_issue": "clear description of main problem" or null,
+  "recommendations": ["specific fix 1", "specific fix 2", ...],
+  "reasoning": "1-2 sentence explanation of your verdict based on the trial pattern"
+}}
+
+## Important Notes
+
+- **Default to GOOD**: Tasks that passed baseline validation are presumed good. Failures are expected.
+- **Consistency matters**: 1/4 trials showing issue is noise, 3/4 with SAME issue is a signal
+- **Baseline validation overrides**: Critical baseline failures always mean is_good=false
+- **Be skeptical of BAD_FAILURE**: "Underspecified Instruction" is often over-diagnosed. Ask: could the agent have figured this out by exploring the codebase?
+- **Low pass rates are GOOD**: 25% pass rate on a hard task is ideal for benchmarking
+- **Successes prove solvability**: Any success means the task CAN be solved with the given instruction
+

@@ -61,6 +61,8 @@ class Subtype(str, Enum):
     CONTEXT_LOSS = "Context Loss"
     PREMATURE_STOP = "Premature Stop"
     COMPLEXITY_OVERWHELM = "Complexity Overwhelm"
+    INCOMPLETE_SOLUTION = "Incomplete Solution"
+    LOGIC_ERROR = "Logic Error"
     
     # BAD_FAILURE subtypes (task's fault)
     UNDERSPECIFIED_INSTRUCTION = "Underspecified Instruction"
@@ -69,6 +71,9 @@ class Subtype(str, Enum):
     ENVIRONMENT_ISSUES = "Environment Issues"
     MISSING_FILE_REFERENCE = "Missing File Reference"
     AMBIGUOUS_REQUIREMENTS = "Ambiguous Requirements"
+    IMPLEMENTATION_DETAILS_REQUIRED = "Implementation Details Required"
+    EDGE_CASES_NOT_SPECIFIED = "Edge Cases Not Specified"
+    TEST_EXPECTS_SPECIFIC_FORMAT = "Test Expects Specific Format"
     
     # GOOD_SUCCESS subtypes
     CORRECT_SOLUTION = "Correct Solution"
@@ -104,6 +109,22 @@ class TrialClassificationModel(BaseModel):
     
     recommendation: str = Field(
         description="How to fix the task (if BAD_FAILURE or BAD_SUCCESS), or 'N/A' if task is fine"
+    )
+
+
+class TaskVerdictModel(BaseModel):
+    """Pydantic model for LLM structured output for the overall task verdict."""
+
+    is_good: bool = Field(description="Whether the task is good (true) or needs review (false)")
+    confidence: Literal["high", "medium", "low"] = Field(description="Confidence level")
+    primary_issue: str | None = Field(
+        default=None, description="Primary issue if task needs review, else null"
+    )
+    recommendations: list[str] = Field(
+        default_factory=list, description="Actionable recommendations (3-5 for bad tasks)"
+    )
+    reasoning: str | None = Field(
+        default=None, description="1-2 sentence explanation of the verdict (optional)"
     )
 
 

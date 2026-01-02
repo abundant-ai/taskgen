@@ -6,7 +6,7 @@ from pathlib import Path
 from harbor.models.environment_type import EnvironmentType
 from harbor.models.task.task import Task
 
-from .harbor_runner import parse_harbor_reward, run_harbor_agent
+from .harbor_runner import parse_harbor_outcome, run_harbor_agent
 
 
 class ValidationError(Exception):
@@ -105,7 +105,7 @@ def run_nop_oracle(
         delete_after=False,
         environment=environment,
     )
-    nop_reward = parse_harbor_reward(nop_result)
+    nop_reward = parse_harbor_outcome(nop_result).reward
     job_dirs["nop"] = nop_result.parent if nop_result else None
 
     # Oracle: Delete image after running (cleanup)
@@ -119,7 +119,7 @@ def run_nop_oracle(
         delete_after=True,
         environment=environment,
     )
-    oracle_reward = parse_harbor_reward(oracle_result)
+    oracle_reward = parse_harbor_outcome(oracle_result).reward
     job_dirs["oracle"] = oracle_result.parent if oracle_result else None
 
     return nop_reward, oracle_reward, job_dirs
@@ -138,5 +138,5 @@ __all__ = [
     "check_validation_passed",
     # Low-level (from harbor_runner)
     "run_harbor_agent",
-    "parse_harbor_reward",
+    "parse_harbor_outcome",
 ]

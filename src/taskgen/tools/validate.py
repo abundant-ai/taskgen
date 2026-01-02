@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
 
-from .harbor_runner import parse_harbor_reward, run_harbor_agent
+from .harbor_runner import parse_harbor_outcome, run_harbor_agent
 from .network_isolation import network_isolation
 
 
@@ -141,7 +141,7 @@ def _run_agents(
             delete_after=delete_after,
             environment=environment,
         )
-        nop_reward = parse_harbor_reward(job_result)
+        nop_reward = parse_harbor_outcome(job_result).reward
         print(f"[validate] nop exit={code}, reward={nop_reward}")
 
     if agent in ("oracle", "both"):
@@ -155,7 +155,7 @@ def _run_agents(
             delete_after=True,
             environment=environment,
         )
-        oracle_reward = parse_harbor_reward(job_result)
+        oracle_reward = parse_harbor_outcome(job_result).reward
         print(f"[validate] oracle exit={code}, reward={oracle_reward}")
 
     return nop_reward, oracle_reward
@@ -291,7 +291,7 @@ async def _validate_batch(
                         delete_after,
                         environment,
                     )
-                    nop_reward = parse_harbor_reward(job)
+                    nop_reward = parse_harbor_outcome(job).reward
 
                 # Run Oracle (capture_output=True to suppress Harbor's verbose output)
                 if agent in ("oracle", "both"):
@@ -307,7 +307,7 @@ async def _validate_batch(
                         True,
                         environment,
                     )
-                    oracle_reward = parse_harbor_reward(job)
+                    oracle_reward = parse_harbor_outcome(job).reward
 
                 # Determine pass/fail
                 passed = _check_passed(agent, nop_reward, oracle_reward)
