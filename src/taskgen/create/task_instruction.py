@@ -7,7 +7,7 @@ from openai import OpenAI
 
 from .utils import CombinedPRTaskEvaluation
 
-COMBINED_SYSTEM_PROMPT = """You are evaluating GitHub pull requests and converting substantial ones into Harbor/Terminal-Bench tasks.
+COMBINED_SYSTEM_PROMPT = """You are evaluating GitHub pull requests and converting substantial ones into Harbor tasks.
 
 Your job has TWO PHASES:
 

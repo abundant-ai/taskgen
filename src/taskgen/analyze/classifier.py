@@ -34,6 +34,75 @@ _VERDICT_PROMPT_PATH = Path(__file__).parent / "verdict_prompt.txt"
 _VERDICT_PROMPT = _VERDICT_PROMPT_PATH.read_text()
 
 
+def write_trial_analysis_files(
+    trial_dir: Path,
+    classification: TrialClassification,
+    task_id: str,
+    agent: str,
+    model: str,
+) -> None:
+    """Write trajectory analysis files to trial directory.
+    
+    Creates three files in the trial directory:
+    - trajectory-analysis.json: Structured JSON with classification results
+    - trajectory-analysis.md: Human-readable markdown report
+    - trajectory-analysis-raw.json: Raw classification data (same as JSON for now)
+    
+    Args:
+        trial_dir: Path to trial directory
+        classification: TrialClassification result
+        task_id: Task identifier
+        agent: Agent name
+        model: Model name
+    """
+    import json
+    
+    # Write JSON
+    json_data = {
+        "task_id": task_id,
+        "agent": agent,
+        "model": model,
+        "classification": classification.classification.value,
+        "subtype": classification.subtype,
+        "evidence": classification.evidence,
+        "root_cause": classification.root_cause,
+        "recommendation": classification.recommendation,
+    }
+    
+    (trial_dir / "trajectory-analysis.json").write_text(
+        json.dumps(json_data, indent=2)
+    )
+    
+    # Write markdown
+    md_content = f"""# Trajectory Analysis
+
+**Task:** {task_id}
+**Agent:** {agent}
+**Model:** {model}
+
+---
+
+### Classification
+{classification.classification.value} - {classification.subtype}
+
+### Evidence
+{classification.evidence}
+
+### Root Cause
+{classification.root_cause}
+
+### Recommendation
+{classification.recommendation}
+"""
+    
+    (trial_dir / "trajectory-analysis.md").write_text(md_content)
+    
+    # Write raw (same as JSON for now, could include full SDK response)
+    (trial_dir / "trajectory-analysis-raw.json").write_text(
+        json.dumps(json_data, indent=2)
+    )
+
+
 class TrialClassifier:
     """Classifies trial outcomes using Claude Code to identify task quality issues.
     
