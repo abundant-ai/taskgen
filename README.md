@@ -156,10 +156,17 @@ taskgen analyze tasks/<task_id> -k 5 -a claude-code
 <summary>Analysis Pipeline</summary>
 
 1. Static quality check (Harbor's `tasks check`)
-2. Run N agent trials (default: 3 with Claude Code)
-3. AI-powered failure analysis (Harbor's `jobs summarize`)
-4. Instruction sufficiency check (Harbor's `tasks debug`)
-5. Solution variance analysis across successful trials
+2. Baseline validation (nop should fail, oracle should pass)
+3. Run N agent trials (default: 3 with Claude Code)
+4. AI-powered trial classification (identifies TASK vs AGENT problems)
+5. Task verdict synthesis with actionable recommendations
+
+**Classification categories:**
+- `GOOD_SUCCESS` — Agent solved it correctly
+- `BAD_SUCCESS` — Agent cheated or tests too permissive
+- `GOOD_FAILURE` — Agent failed due to its own limitations (expected for hard tasks)
+- `BAD_FAILURE` — Agent failed due to task issues (underspecified, brittle tests, etc.)
+- `HARNESS_ERROR` — Infrastructure problem
 
 </details>
 
@@ -169,10 +176,16 @@ taskgen analyze tasks/<task_id> -k 5 -a claude-code
 - `-a, --agent TYPE` — Agent to run trials (default: `claude-code`)
 - `-m, --model MODEL` — Model for agent trials (default: `anthropic/claude-sonnet-4-20250514`)
 - `-k, --n-trials N` — Number of trials (default: 3)
+- `-n, --n-concurrent N` — Number of concurrent trials (default: 3, 1=sequential)
 - `--jobs-dir PATH` — Directory to store job artifacts (default: `.state/analyze-jobs`)
-- `--analysis-model MODEL` — Model for analysis steps (default: `haiku`)
+- `--analysis-model MODEL` — Model for Claude Code classification (default: `claude-sonnet-4-20250514`)
+- `--env, -e TYPE` — Environment type: `docker`, `daytona`, `e2b`, `modal`, `runloop`, `gke` (default: `docker`)
 - `--skip-quality-check` — Skip static quality check
-- `--skip-summarize` — Skip failure summarization
+- `--skip-baseline` — Skip baseline validation (nop/oracle)
+- `--skip-classify` — Skip AI-powered classification
+- `--save-to-dir` — Write trajectory-analysis.{md,json} to each trial directory (for CI integration)
+- `--classification-timeout N` — Timeout per trial classification in seconds (default: 300)
+- `--verdict-timeout N` — Timeout for verdict synthesis in seconds (default: 180)
 - `--timeout-multiplier N` — Multiply default timeouts
 - `-v, --verbose`
 

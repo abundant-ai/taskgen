@@ -89,7 +89,16 @@ Run multiple agent trials and analyze task quality.
 
 ```bash
 taskgen analyze tasks/<task_id> -k 3 -a claude-code
+taskgen analyze tasks/<task_id> -k 5 --save-to-dir
 ```
+
+Key options:
+- `-k, --n-trials`: Number of trials to run (default: 3)
+- `-n, --n-concurrent`: Number of concurrent trials (default: 3)
+- `--analysis-model`: Model for Claude Code classification (default: claude-sonnet-4-20250514)
+- `--save-to-dir`: Write trajectory-analysis.{md,json} to each trial directory
+- `--skip-baseline`: Skip baseline validation (nop/oracle)
+- `--skip-classify`: Skip AI-powered trial classification
 
 ### `taskgen clean`
 Remove local artifacts (.state, logs, jobs).
@@ -266,14 +275,25 @@ Supports batch mode for validating multiple tasks in parallel.
 
 Comprehensive task quality analysis module:
 1. Static quality check (Harbor's checker)
-2. Multiple agent trials (default: 3)
-3. AI-powered failure classification and summarization
-4. Instruction sufficiency check
-5. Solution variance analysis
+2. Baseline validation (nop should fail, oracle should pass)
+3. Multiple agent trials (default: 3, configurable concurrency)
+4. AI-powered trial classification (identifies TASK vs AGENT problems)
+5. Task verdict synthesis with actionable recommendations
+
+**Classification System:**
+- Uses Claude Code to analyze each trial's trajectory and test results
+- Distinguishes between task problems (BAD_FAILURE/BAD_SUCCESS) and agent limitations (GOOD_FAILURE)
+- Provides evidence, root cause analysis, and recommendations for task improvements
+- Aggregates results across all trials to compute overall task verdict
+
+**CI Integration:**
+- `--save-to-dir` flag writes per-trial analysis files (trajectory-analysis.{md,json})
+- Compatible with task-workflows trajectory analysis system
+- Enables batch verdict synthesis across multiple trials
 
 Components:
 - **run.py** - Main analysis orchestrator
-- **classifier.py** - AI-powered failure analysis using structured outputs
+- **classifier.py** - AI-powered failure classification using Claude Agent SDK
 - **models.py** - Pydantic models for analysis results
 - **classify_prompt.txt** - Prompt template for failure classification
 - **verdict_prompt.txt** - Prompt template for solution verdict
