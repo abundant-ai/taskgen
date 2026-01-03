@@ -20,8 +20,6 @@ dependencies = [
     "claude-agent-sdk",
     # Hard requirement: laude-institute/harbor; uv maps to Git HEAD via tool.uv.sources
     "harbor",
-    # Bundle Terminal-Bench CLI as a dependency so `tb` is available in the same env
-    "terminal-bench",
 ]
 
 [project.scripts]
@@ -46,7 +44,6 @@ dev = [
 
 [tool.uv.sources]
 harbor = { git = "https://github.com/laude-institute/harbor" }
-terminal-bench = { git = "https://github.com/laude-institute/terminal-bench" }
 
 [build-system]
 requires = ["hatchling"]

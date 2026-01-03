@@ -393,4 +393,3 @@ Key dependencies (from `pyproject.toml`):
 - **pydantic** - Data validation
 - **requests** - HTTP client
 - **harbor** - Harbor evaluation framework (git dependency)
-- **terminal-bench** - Terminal-Bench CLI (git dependency)
