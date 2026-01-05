@@ -115,14 +115,14 @@ class AnalyzeArgs:
 
     task_path: Path
     agent: str = "claude-code"
-    model: str = "anthropic/claude-sonnet-4-20250514"
+    model: str = "anthropic/claude-sonnet-4-5"
     n_trials: int = 3
     n_concurrent: int = 1  # Number of concurrent trials (matches Harbor's -n flag)
     jobs_dir: Path = Path(".state/analyze-jobs")
     skip_quality_check: bool = False
     skip_baseline: bool = False  # Skip baseline validation (nop/oracle)
     skip_classify: bool = False  # Skip Claude Code classification
-    analysis_model: str = "claude-sonnet-4-20250514"  # Model for Claude Code classification
+    analysis_model: str = "claude-sonnet-4-5"  # Model for Claude Code classification
     environment: str = "docker"  # Environment type (docker|daytona|e2b|modal|runloop|gke)
     verbose: bool = False
     timeout_multiplier: float = 1.0

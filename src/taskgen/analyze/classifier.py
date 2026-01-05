@@ -117,14 +117,14 @@ class TrialClassifier:
     
     def __init__(
         self,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-4-5",
         verbose: bool = False,
         timeout: int = 300,  # 5 minutes per classification
     ):
         """Initialize the classifier.
         
         Args:
-            model: Model name for Claude Code (default: claude-sonnet-4-20250514)
+            model: Model name for Claude Code (default: claude-sonnet-4-5)
             verbose: If True, stream Claude Code output to console
             timeout: Maximum time per classification in seconds (default: 300 = 5 min)
         """
@@ -417,7 +417,7 @@ async def compute_task_verdict_with_llm(
     classifications: list[TrialClassification],
     baseline: BaselineValidation | None = None,
     quality_check_passed: bool = True,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-sonnet-4-5",
     console: "Console | None" = None,
     verbose: bool = False,
     timeout: int = 180,  # 3 minutes for verdict synthesis
@@ -581,7 +581,7 @@ def compute_task_verdict(
     classifications: list[TrialClassification],
     baseline: BaselineValidation | None = None,
     quality_check_passed: bool = True,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-sonnet-4-5",
     console: "Console | None" = None,
     verbose: bool = False,
     timeout: int = 180,
@@ -595,7 +595,7 @@ def compute_task_verdict(
         classifications: List of trial classifications
         baseline: Optional baseline validation results
         quality_check_passed: Whether static quality check passed
-        model: Model name for Claude synthesis (default: claude-sonnet-4-20250514)
+        model: Model name for Claude synthesis (default: claude-sonnet-4-5)
         console: Optional console for progress output
         verbose: If True, stream Claude Code output to console
         timeout: Maximum time for verdict synthesis in seconds (default: 180 = 3 min)
