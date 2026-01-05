@@ -31,7 +31,7 @@ uv pip install -e .
 ```
 
 **Requirements:**
-- Python 3.13+
+- Python 3.12+
 - Docker
 - uv
 - [Claude Code CLI](https://github.com/anthropics/claude-code)
