@@ -41,7 +41,7 @@ uv pip install -e .
 ```bash
 export GITHUB_TOKEN=<gh-token>
 export OPENAI_API_KEY=<api-key>
-export ANTHROPIC_API_KEY=<api-key>  # or use Claude Code OAuth
+export ANTHROPIC_API_KEY=<api-key>  # or CLAUDE_CODE_OAUTH_TOKEN
 ```
 
 **Note:** Cloud sandbox environments (Daytona, E2B, Modal, etc.) require additional API keys.
@@ -52,7 +52,8 @@ export ANTHROPIC_API_KEY=<api-key>  # or use Claude Code OAuth
 - `taskgen create` — Generate task from a merged PR (validates by default)
 - `taskgen farm` — Continuously process PRs from a repository
 - `taskgen validate` — Validate existing Harbor task (NOP + Oracle)
-- `taskgen analyze` — Deep analysis with agent trials to verify task quality
+- `taskgen analyze task` — Deep analysis with agent trials to verify task quality
+- `taskgen analyze trial` — Classify a single completed trial (trajectory analysis)
 - `taskgen clean` — Remove .state artifacts
 
 ### Generate a Task
@@ -108,7 +109,7 @@ taskgen farm fastapi/fastapi --reset
 - `--force` — Regenerate even if task already exists (default: true)
 - `--no-validate` — Skip Harbor validation step
 - `--network-isolated` — Also run network-isolated validation
-- `--no-issue-only` — Allow PRs without linked issues (default: requires issues for higher quality instructions)
+- `--issue-only` — Only process PRs with linked issues (default: True)
 - `--no-require-minimum-difficulty` — Skip 3+ file and LLM checks
 - `--min-source-files N` — Minimum number of source files required (default: 3, tests excluded)
 - `--max-source-files N` — Maximum number of source files to avoid large refactors (default: 10, tests excluded)
@@ -148,8 +149,14 @@ taskgen validate tasks/<task_id>
 Run agent trials to verify a task is well-specified and solvable:
 
 ```bash
-taskgen analyze tasks/<task_id>
-taskgen analyze tasks/<task_id> -k 5 -a claude-code
+taskgen analyze task tasks/<task_id>
+taskgen analyze task tasks/<task_id> -k 5 -a claude-code
+```
+
+Or classify a single completed trial:
+
+```bash
+taskgen analyze trial <trial_dir> --task-dir <task_dir> --agent claude-code
 ```
 
 <details>
@@ -249,7 +256,7 @@ taskgen farm colinhacks/zod
 taskgen validate examples/axios__axios-7150
 
 # Analyze task quality with agent trials
-taskgen analyze examples/axios__axios-7150
+taskgen analyze task examples/axios__axios-7150
 ```
 
 ## License

@@ -24,7 +24,7 @@ uv pip install -e .
 ```
 
 **Requirements:**
-- Python 3.13+
+- Python 3.12+
 - Docker
 - uv
 - [Claude Code CLI](https://github.com/anthropics/claude-code)
@@ -68,7 +68,7 @@ taskgen farm fastapi/fastapi --resume-from 2024-01-15
 
 Key options:
 - `--dry-run`: Preview without generation
-- `--no-issue-only`: Allow PRs without linked issues (default: requires issues)
+- `--issue-only`: Only process PRs with linked issues (default: True)
 - `--reset`: Start from beginning
 - `--timeout`: Timeout per PR in seconds (default: 300)
 - `--cc-timeout`: Claude Code session timeout (default: 3200)
@@ -85,11 +85,14 @@ taskgen validate tasks/  # Batch mode
 ```
 
 ### `taskgen analyze`
+Analyze task quality or classify trial outcomes. Has two subcommands:
+
+#### `taskgen analyze task`
 Run multiple agent trials and analyze task quality.
 
 ```bash
-taskgen analyze tasks/<task_id> -k 3 -a claude-code
-taskgen analyze tasks/<task_id> -k 5 --save-to-dir
+taskgen analyze task tasks/<task_id> -k 3 -a claude-code
+taskgen analyze task tasks/<task_id> -k 5 --save-to-dir
 ```
 
 Key options:
@@ -99,6 +102,15 @@ Key options:
 - `--save-to-dir`: Write trajectory-analysis.{md,json} to each trial directory
 - `--skip-baseline`: Skip baseline validation (nop/oracle)
 - `--skip-classify`: Skip AI-powered trial classification
+
+#### `taskgen analyze trial`
+Classify a single completed trial (trajectory analysis).
+
+```bash
+taskgen analyze trial <trial_dir> --task-dir <task_dir> --agent claude-code --model anthropic/claude-sonnet-4-20250514
+```
+
+This command analyzes an existing trial's trajectory without running new trials. Useful for CI integration.
 
 ### `taskgen clean`
 Remove local artifacts (.state, logs, jobs).
@@ -256,7 +268,7 @@ PRs are filtered by:
 - Must be merged to primary branch
 - Must include test changes
 - Must modify minimum number of files (configurable with `--min-source-files` and `--max-source-files`)
-- Must have linked issue by default (disable with `--no-issue-only`)
+- Must have linked issue by default (disable with `--no-issue-only` flag, since `--issue-only` defaults to True)
 - Must pass LLM substantiality check (disable with `--no-require-minimum-difficulty`)
 
 ---
@@ -320,9 +332,11 @@ Key defaults:
 - Claude Code always used for task completion
 - Minimum 3 source files required for task generation (configurable via `--min-source-files`)
 - Maximum 10 source files to avoid large refactors (configurable via `--max-source-files`)
-- Linked issue required for high-quality instructions (disable with `--no-require-issue`)
+- Linked issue required for high-quality instructions (disable with `--no-require-issue` for create, `--no-issue-only` for farm)
 - Task references enabled by default for faster generation
 - Harbor validation enabled by default (disable with `--no-validate`)
+- Farm command: `--issue-only` defaults to True (only process PRs with linked issues)
+- Farm command: `--cc-timeout` defaults to 3200 seconds (~53 minutes)
 
 ---
 
