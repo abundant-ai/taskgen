@@ -7,6 +7,8 @@ from openai import OpenAI
 
 from .utils import CombinedPRTaskEvaluation
 
+MAX_LINKED_ISSUES = 5
+
 COMBINED_SYSTEM_PROMPT = """You are evaluating GitHub pull requests and converting substantial ones into Harbor tasks.
 
 Your job has TWO PHASES:
@@ -124,10 +126,10 @@ def _format_user_prompt(
 
     # MODE 1: Linked issues exist - use ONLY issue content (preferred)
     if linked_issues and len(linked_issues) > 0:
-        # Sort by body length (longer = more detail = more useful), take top 3
+        # Sort by body length (longer = more detail = more useful), take top N
         sorted_issues = sorted(
             linked_issues, key=lambda x: len(x.get("body", "") or ""), reverse=True
-        )[:3]
+        )[:MAX_LINKED_ISSUES]
 
         issue_lines = []
         for issue in sorted_issues:
