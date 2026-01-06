@@ -238,26 +238,6 @@ The generated task will:
 
 ---
 
-<details>
-<summary>📁 Task Files Generated</summary>
-
-\`\`\`
-$TASK_ID/
-├── instruction.md      # Task description for the agent
-├── task.toml           # Task configuration
-├── environment/
-│   ├── Dockerfile      # Container setup
-│   └── bug.patch       # Diff to create buggy baseline
-├── solution/
-│   ├── fix.patch       # The correct fix (your PR)
-│   └── solve.sh        # Oracle solution script
-└── tests/
-    └── test.sh         # Validation script
-\`\`\`
-
-</details>
-
-<details>
 <summary>📋 Instruction Preview</summary>
 
 \`\`\`markdown
