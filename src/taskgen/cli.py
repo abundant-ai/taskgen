@@ -89,6 +89,10 @@ def create_cmd(
         True,
         help="Require PR to have a linked issue (higher quality instructions); --no-require-issue uses PR body/title instead",
     ),
+    allow_unmerged: bool = typer.Option(
+        False,
+        help="Allow processing unmerged PRs (for testing/preview); --allow-unmerged to enable",
+    ),
     environment: str = typer.Option(
         "docker",
         "-e",
@@ -113,6 +117,7 @@ def create_cmd(
         min_source_files=min_source_files,
         max_source_files=max_source_files,
         require_issue=require_issue,
+        allow_unmerged=allow_unmerged,
         environment=EnvironmentType(environment),
         verbose=verbose,
         quiet=quiet,

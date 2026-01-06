@@ -29,6 +29,7 @@ class CreateConfig:
         min_source_files: Minimum number of source files required (default: 3)
         max_source_files: Maximum number of source files allowed to avoid large refactors (default: 10)
         require_issue: Require PR to have a linked issue (higher quality instructions)
+        allow_unmerged: Allow processing unmerged PRs (for testing/preview, default: False)
         environment: Environment type for Harbor runs (docker, daytona, e2b, modal, runloop, gke)
         verbose: Increase output verbosity
         quiet: Reduce output verbosity
@@ -47,6 +48,7 @@ class CreateConfig:
     min_source_files: int = 3
     max_source_files: int = 10
     require_issue: bool = True
+    allow_unmerged: bool = False
     environment: EnvironmentType = EnvironmentType.DOCKER
     verbose: bool = False
     quiet: bool = False

@@ -118,6 +118,11 @@ CMD+=" --min-source-files $MIN_SOURCE_FILES"
 CMD+=" --max-source-files $MAX_SOURCE_FILES"
 CMD+=" --cc-timeout $CC_TIMEOUT"
 
+# Allow unmerged PRs in CI (for testing/preview on open PRs)
+if [[ "$REQUIRE_MERGED" != "true" ]]; then
+    CMD+=" --allow-unmerged"
+fi
+
 if [[ "$SKIP_VALIDATION" == "true" ]]; then
     CMD+=" --no-validate"
     echo "Validation: SKIPPED"

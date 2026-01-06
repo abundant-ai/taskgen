@@ -457,7 +457,7 @@ def run_reversal(config: CreateConfig) -> None:
 
             # Step 1a: Fetch PR metadata
             console.print("[dim]  → Fetching PR metadata...[/dim]")
-            metadata = pipeline.pr_fetcher.fetch_pr_metadata()
+            metadata = pipeline.pr_fetcher.fetch_pr_metadata(allow_unmerged=config.allow_unmerged)
 
             # Step 1b: Clone/update repo cache
             console.print(

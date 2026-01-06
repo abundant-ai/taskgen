@@ -48,13 +48,17 @@ class GitHubPRFetcher:
         response.raise_for_status()
         return response.json()
 
-    def fetch_pr_metadata(self) -> dict:
-        """Fetch PR metadata from GitHub API."""
+    def fetch_pr_metadata(self, allow_unmerged: bool = False) -> dict:
+        """Fetch PR metadata from GitHub API.
+        
+        Args:
+            allow_unmerged: If True, allow unmerged PRs (for testing/preview). Default False.
+        """
         logger = logging.getLogger("taskgen")
         logger.debug("Fetching PR #%s metadata from %s...", self.pr_number, self.repo)
         pr_data = self._api_get(f"/repos/{self.repo}/pulls/{self.pr_number}")
 
-        if not pr_data.get("merged"):
+        if not allow_unmerged and not pr_data.get("merged"):
             raise ValueError(f"PR #{self.pr_number} is not merged yet!")
 
         # Get the commits

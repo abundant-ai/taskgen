@@ -147,7 +147,7 @@ class PRToHarborPipeline:
 
         # Step 1: Fetch PR metadata (use provided or fetch)
         if metadata is None:
-            metadata = self.pr_fetcher.fetch_pr_metadata()
+            metadata = self.pr_fetcher.fetch_pr_metadata(allow_unmerged=self.config.allow_unmerged)
 
         # Fetch linked issues for better task descriptions (use provided or fetch)
         if linked_issues is None:
