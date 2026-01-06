@@ -44,6 +44,14 @@ jobs:
 
 That's it! PRs will now show eligibility status in the Job Summary.
 
+## Requirements
+- **Claude Code** - Requires ONE of:
+  - `CLAUDE_CODE_OAUTH_TOKEN` (preferred)
+  - `ANTHROPIC_API_KEY`
+- `OPENAI_API_KEY`
+
+Without Claude Code credentials, the action only checks basic eligibility (file counts, test presence). With credentials, it runs full Docker validation to ensure the task builds and passes Harbor's NOP/Oracle checks.
+
 ## What Makes a PR Eligible?
 
 | Requirement | Why |
@@ -84,6 +92,6 @@ No write access to your repository is needed.
 ## Local Testing
 
 ```bash
-pip install git+https://github.com/abundant-ai/taskgen.git
+uv pip install git+https://github.com/abundant-ai/taskgen.git
 taskgen create --repo owner/repo --pr 123
 ```
