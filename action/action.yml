@@ -27,7 +27,7 @@ inputs:
   
   openai_api_key:
     description: 'OpenAI API key for PR evaluation'
-    required: false
+    required: true
   
   skip_validation:
     description: 'Skip Harbor NOP/Oracle Docker validation (faster but less accurate)'
