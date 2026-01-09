@@ -52,7 +52,6 @@ taskgen create --repo <owner/repo> --pr <number>
 Key options:
 - `--cc-timeout`: Timeout for Claude Code session in seconds (default: 3200)
 - `--no-validate`: Skip Harbor validation
-- `--network-isolated`: Also run network-isolated validation
 - `--no-require-issue`: Allow PRs without linked issues
 - `--no-require-minimum-difficulty`: Skip 3+ file requirement
 - `--no-cache`: Disable reusing cached artifacts from previous tasks
@@ -149,8 +148,7 @@ src/taskgen/
 └── tools/                  # Utility tools
     ├── validate.py         # Harbor NOP/Oracle validation
     ├── harbor_runner.py    # Harbor CLI wrapper
-    ├── validation.py       # Validation helpers
-    ├── network_isolation.py    # Network-isolated testing
+    ├── validate_utils.py   # Validation helpers
     └── clean.py            # Artifact cleanup
 ```
 
@@ -158,9 +156,9 @@ src/taskgen/
 
 ## Pipeline Flow
 
-### Universal Task Generation (`generate_task_universal`)
+### Task Generation (`generate_task`)
 
-The pipeline uses a **single universal flow** that works for any language:
+The pipeline uses a **single flow** that works for any language:
 
 1. **Fetch PR metadata** via GitHub API (`pr_fetcher.py`)
 2. **Check multi-file requirement** - must modify 3+ source files
@@ -168,7 +166,7 @@ The pipeline uses a **single universal flow** that works for any language:
 4. **Clone repo** to local cache with proper SHA checkout
 5. **Generate diffs** - `bug.patch` (reverts PR) and solution diff (the fix, saved as `fix.patch`)
 6. **Evaluate PR** - LLM call (`task_instruction.py`) to check substantiality and generate instructions
-7. **Generate universal skeleton files** (`task_skeleton.py`):
+7. **Generate skeleton files** (`task_skeleton.py`):
    - `environment/Dockerfile` - clones at HEAD, has TODOs for Claude Code
    - `environment/bug.patch` - reverts all PR changes
    - `tests/test.sh` - has TODOs for test command

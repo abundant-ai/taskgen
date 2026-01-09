@@ -11,7 +11,7 @@ from harbor.models.environment_type import EnvironmentType
 class CreateConfig:
     """Configuration for the create command (PR → Harbor task).
 
-    The create command uses a universal language-agnostic pipeline that works
+    The create command uses a language-agnostic pipeline that works
     for any repository. Claude Code analyzes the repo to detect language, runtime,
     build system, and test framework automatically.
 
@@ -21,7 +21,6 @@ class CreateConfig:
         output: Output directory for generated tasks (default: tasks/)
         cc_timeout: Timeout for Claude Code session in seconds
         validate: Run Harbor validations (NOP + Oracle)
-        network_isolated: Also run network-isolated validation
         force: Bypass local dedupe and regenerate existing tasks
         state_dir: Directory for local state/cache
         use_cache: Reuse cached Dockerfiles/test.sh from previous tasks
@@ -40,7 +39,6 @@ class CreateConfig:
     output: Path = field(default_factory=lambda: Path("tasks"))
     cc_timeout: int = 3200
     validate: bool = True
-    network_isolated: bool = False
     force: bool = False
     state_dir: Path = field(default_factory=lambda: Path(".state"))
     use_cache: bool = True
@@ -64,7 +62,7 @@ class CreateConfig:
 class FarmConfig:
     """Configuration for the farm command (continuous PR processing).
 
-    The farm command uses a universal language-agnostic pipeline that works
+    The farm command uses a language-agnostic pipeline that works
     for any repository. Claude Code analyzes the repo to detect language, runtime,
     build system, and test framework automatically.
 
@@ -90,7 +88,6 @@ class FarmConfig:
         verbose: Enable verbose output
         issue_only: Only process PRs that have linked issues (higher quality instructions)
         validate: Run Harbor validation after CC (useful when CC times out but task may be valid)
-        network_isolated: Also run network-isolated validation
     """
 
     repo: str
@@ -114,7 +111,6 @@ class FarmConfig:
     verbose: bool = False
     issue_only: bool = False
     validate: bool = True
-    network_isolated: bool = False
 
 
 @dataclass(frozen=True)
@@ -127,7 +123,6 @@ class ValidateConfig:
         agent: Agent to run: both, nop, or oracle
         jobs_dir: Directory to store Harbor job artifacts
         timeout_multiplier: Multiply default timeouts
-        network_isolated: Also run network-isolated validation
         environment: Environment type for Harbor runs (docker, daytona, e2b, modal, runloop, gke)
         verbose: Increase output verbosity
         quiet: Reduce output verbosity
@@ -140,7 +135,6 @@ class ValidateConfig:
     agent: Literal["both", "nop", "oracle"] = "both"
     jobs_dir: Path = field(default_factory=lambda: Path(".state/harbor-jobs"))
     timeout_multiplier: float | None = None
-    network_isolated: bool = False
     environment: EnvironmentType = EnvironmentType.DOCKER
     verbose: bool = False
     quiet: bool = False
