@@ -208,7 +208,6 @@ def _run_reversal_for_pr_impl(
         output=config.output,
         cc_timeout=config.cc_timeout,
         validate=config.validate,  # Run Harbor validation if --validate flag is set
-        network_isolated=config.network_isolated,
         force=config.force,
         state_dir=config.state_dir,
         verbose=config.verbose,

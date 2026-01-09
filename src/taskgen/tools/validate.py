@@ -11,7 +11,6 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 from rich.table import Table
 
 from .harbor_runner import parse_harbor_outcome, run_harbor_agent
-from .network_isolation import network_isolation
 
 
 @dataclass
@@ -23,7 +22,6 @@ class ValidateArgs:
     timeout_multiplier: float | None = None
     verbose: bool = False
     quiet: bool = False
-    network_isolated: bool = False
     environment: EnvironmentType = EnvironmentType.DOCKER
     max_parallel: int = 8
     show_passed: bool = False
@@ -113,10 +111,6 @@ def _run_single_mode(args: ValidateArgs, dataset_path: Path, task_id: str, task_
             print(f"  NOP: reward={nop_reward} ✓")
             print(f"  ORACLE: reward={oracle_reward} ✓")
 
-    # Network-isolated validation if requested
-    if args.network_isolated:
-        _run_network_isolated(args, task_id, dataset_path, task_dir, jobs_dir)
-
 
 def _run_agents(
     task_id: str,
@@ -159,33 +153,6 @@ def _run_agents(
         print(f"[validate] oracle exit={code}, reward={oracle_reward}")
 
     return nop_reward, oracle_reward
-
-
-def _run_network_isolated(
-    args: ValidateArgs,
-    task_id: str,
-    dataset_path: Path,
-    task_dir: Path,
-    jobs_dir: Path,
-) -> None:
-    """Run network-isolated validation."""
-    print("\n[validate] Running network-isolated validation...")
-
-    with network_isolation(task_dir):
-        nop_reward, oracle_reward = _run_agents(
-            task_id, dataset_path, jobs_dir, args.agent, args.timeout_multiplier, args.environment
-        )
-
-    if args.agent == "both":
-        if nop_reward != 0 or oracle_reward != 1:
-            print("\n[validate] FAILED: Network-isolated validation did not meet expectations")
-            print(f"  NOP-NO-NETWORK: expected reward=0, got reward={nop_reward}")
-            print(f"  ORACLE-NO-NETWORK: expected reward=1, got reward={oracle_reward}")
-            sys.exit(1)
-        else:
-            print("\n[validate] PASSED: Network-isolated validation met expectations")
-            print(f"  NOP-NO-NETWORK: reward={nop_reward} ✓")
-            print(f"  ORACLE-NO-NETWORK: reward={oracle_reward} ✓")
 
 
 # ============================================================================

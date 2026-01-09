@@ -18,7 +18,6 @@ from rich.traceback import install as rich_traceback_install
 
 from taskgen.config import CreateConfig
 from taskgen.tools.harbor_runner import parse_harbor_outcome, run_harbor_agent
-from taskgen.tools.network_isolation import network_isolation
 from taskgen.tools.validate_utils import ValidationError, run_nop_oracle
 
 from . import MissingIssueError, PRToHarborPipeline, TrivialPRError
@@ -327,9 +326,6 @@ def _display_logs_panel(
     gen_log_path: Path,
     harbor_nop_job_dir: str | None,
     harbor_oracle_job_dir: str | None,
-    network_isolated: bool = False,
-    harbor_nop_no_net_job_dir: str | None = None,
-    harbor_oracle_no_net_job_dir: str | None = None,
 ) -> None:
     """Display the logs panel with job directory paths."""
     logs = Table(show_header=False, box=None, expand=True)
@@ -337,14 +333,6 @@ def _display_logs_panel(
     logs.add_column("Path", overflow="fold", no_wrap=False)
     logs.add_row("Harbor nop job", Text(harbor_nop_job_dir or "-", overflow="fold"))
     logs.add_row("Harbor oracle job", Text(harbor_oracle_job_dir or "-", overflow="fold"))
-    if network_isolated:
-        logs.add_row(
-            "Harbor nop-no-network job", Text(harbor_nop_no_net_job_dir or "-", overflow="fold")
-        )
-        logs.add_row(
-            "Harbor oracle-no-network job",
-            Text(harbor_oracle_no_net_job_dir or "-", overflow="fold"),
-        )
     logs.add_row("Generate log", Text(str(gen_log_path)))
     console.print(Panel(logs, title="Logs", border_style="magenta"))
 
@@ -632,60 +620,6 @@ def run_reversal(config: CreateConfig) -> None:
             harbor_nop_job_dir = job_dirs.get("nop")
             harbor_oracle_job_dir = job_dirs.get("oracle")
 
-        # Network-isolated validation (runs after regular validation if enabled)
-        harbor_nop_no_net_job_dir = None
-        harbor_oracle_no_net_job_dir = None
-        if harbor_do and config.network_isolated:
-            console.print(Rule(Text("Network-Isolated Validations", style="bold blue")))
-
-            # Run with network isolation enabled via docker-compose override
-            with network_isolation(task_dir):
-                harbor_nop_no_net_job = _run_harbor_with_status(
-                    task_id,
-                    harbor_root,
-                    harbor_jobs,
-                    console,
-                    "nop",
-                    environment=config.environment,
-                )
-                harbor_oracle_no_net_job = _run_harbor_with_status(
-                    task_id,
-                    harbor_root,
-                    harbor_jobs,
-                    console,
-                    "oracle",
-                    environment=config.environment,
-                )
-
-            reward_nop_no_net = parse_harbor_outcome(harbor_nop_no_net_job).reward
-            reward_oracle_no_net = parse_harbor_outcome(harbor_oracle_no_net_job).reward
-            harbor_nop_no_net_job_dir = (
-                str(harbor_nop_no_net_job.parent) if harbor_nop_no_net_job else None
-            )
-            harbor_oracle_no_net_job_dir = (
-                str(harbor_oracle_no_net_job.parent) if harbor_oracle_no_net_job else None
-            )
-            results_rows.append(
-                [
-                    "Harbor nop-no-network",
-                    "reward=0",
-                    f"reward={reward_nop_no_net}"
-                    if reward_nop_no_net is not None
-                    else "reward=unknown",
-                    "Yes" if reward_nop_no_net == 0 else "No",
-                ]
-            )
-            results_rows.append(
-                [
-                    "Harbor oracle-no-network",
-                    "reward=1",
-                    f"reward={reward_oracle_no_net}"
-                    if reward_oracle_no_net is not None
-                    else "reward=unknown",
-                    "Yes" if reward_oracle_no_net == 1 else "No",
-                ]
-            )
-
         # Display validation results and check for failures
         harbor_validation_failed, cc_validation_failed = _display_validation_results(
             console, results_rows
@@ -712,9 +646,6 @@ def run_reversal(config: CreateConfig) -> None:
             gen_log_path,
             harbor_nop_job_dir,
             harbor_oracle_job_dir,
-            config.network_isolated,
-            harbor_nop_no_net_job_dir,
-            harbor_oracle_no_net_job_dir,
         )
         _display_next_steps_panel(console, harbor_root, task_id)
     except (TrivialPRError, MissingIssueError, ValidationError, FileExistsError):

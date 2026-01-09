@@ -61,11 +61,6 @@ def create_cmd(
     validate: bool = typer.Option(
         True, help="Run Harbor validations; --no-validate skips validation"
     ),
-    network_isolated: bool = typer.Option(
-        False,
-        "--network-isolated",
-        help="Also run network-isolated validation (nop-no-network, oracle-no-network)",
-    ),
     force: bool = typer.Option(False, help="Bypass local dedupe and regenerate"),
     state_dir: Path = typer.Option(
         Path(".state"), help="Local dedupe state dir", show_default=True
@@ -109,7 +104,6 @@ def create_cmd(
         output=output,
         cc_timeout=cc_timeout,
         validate=validate,
-        network_isolated=network_isolated,
         force=force,
         state_dir=state_dir,
         use_cache=not no_cache,
@@ -172,11 +166,6 @@ def validate(
     ),
     timeout_multiplier: float
     | None = typer.Option(None, help="Multiply default timeouts (e.g., 3.0)"),
-    network_isolated: bool = typer.Option(
-        False,
-        "--network-isolated",
-        help="Also run network-isolated validation (nop-no-network, oracle-no-network)",
-    ),
     environment: str = typer.Option(
         "docker",
         "-e",
@@ -210,7 +199,6 @@ def validate(
             timeout_multiplier=timeout_multiplier,
             verbose=verbose,
             quiet=quiet,
-            network_isolated=network_isolated,
             environment=EnvironmentType(environment),
             max_parallel=max_parallel,
             show_passed=show_passed,
@@ -561,9 +549,6 @@ def farm(
     validate: bool = typer.Option(
         True, help="Run Harbor validation after CC; --no-validate to skip"
     ),
-    network_isolated: bool = typer.Option(
-        False, "--network-isolated", help="Also run network-isolated validation"
-    ),
 ) -> None:
     """
     Continuously process merged GitHub PRs and convert them to Harbor tasks.
@@ -592,7 +577,6 @@ def farm(
         verbose=verbose,
         issue_only=issue_only,
         validate=validate,
-        network_isolated=network_isolated,
     )
 
     console = Console()
