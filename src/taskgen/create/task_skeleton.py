@@ -73,7 +73,7 @@ WORKDIR /app
 # Clone repo at HEAD commit (with fix applied)
 RUN git clone {params.repo_url} src && \\
     cd src && \\
-    git fetch origin {params.head_sha} && \\
+    git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*' && \\
     git checkout {params.head_sha} && \\
     git submodule update --init --recursive
 
@@ -101,6 +101,9 @@ WORKDIR /app/src
 #   Rust: cargo build
 #   Go: go build ./...
 #   Java: mvn compile, gradle build
+
+# If install/build steps touched tracked files, reset them so bug.patch applies cleanly,
+RUN git reset --hard
 
 # Apply bug.patch to revert to buggy state (BASE)
 COPY bug.patch /tmp/bug.patch
