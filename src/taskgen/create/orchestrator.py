@@ -291,6 +291,7 @@ class PRToHarborPipeline:
                 repo_url=metadata["repo_url"],
                 head_sha=metadata["head_sha"],
                 base_sha=metadata["base_sha"],
+                pr_number=self.pr_number,
             )
 
             # bug.patch
