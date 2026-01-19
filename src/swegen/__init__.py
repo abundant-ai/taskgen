@@ -1,4 +1,4 @@
-from taskgen.config import (
+from swegen.config import (
     CleanConfig,
     CreateConfig,
     FarmConfig,

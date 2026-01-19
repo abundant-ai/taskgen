@@ -10,7 +10,7 @@ from typing import Any
 import requests
 from rich.console import Console
 
-from taskgen.create import is_test_file
+from swegen.create import is_test_file
 
 from .farm_hand import PRCandidate, _slug
 from .state import StreamState
@@ -102,7 +102,7 @@ class StreamingPRFetcher:
         )
         self.headers = {
             "Accept": "application/vnd.github+json",
-            "User-Agent": "taskgen-stream-farm",
+            "User-Agent": "swegen-stream-farm",
         }
         if self.github_token:
             self.headers["Authorization"] = f"token {self.github_token}"

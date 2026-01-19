@@ -1,7 +1,7 @@
 # Harbor Task Checker - GitHub Action
 # 
 # Checks if a PR in your repository can become a Harbor task for LLM training/eval.
-# Learn more: https://github.com/abundant-ai/taskgen
+# Learn more: https://github.com/abundant-ai/swe-gen
 
 name: 'Harbor Task Checker'
 description: 'Check if a PR can become a Harbor task for LLM training/evaluation'
@@ -96,9 +96,9 @@ runs:
       shell: bash
       run: npm install -g @anthropic-ai/claude-code
     
-    - name: Install taskgen
+    - name: Install swegen
       shell: bash
-      run: uv pip install --system git+https://github.com/abundant-ai/taskgen.git@${{ github.action_ref || 'main' }}
+      run: uv pip install --system git+https://github.com/abundant-ai/swe-gen.git@${{ github.action_ref || 'main' }}
     
     - name: Run Harbor Task Check
       id: run-check

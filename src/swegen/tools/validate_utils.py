@@ -30,7 +30,7 @@ def validate_task_structure(task_dir: Path) -> bool:
     Raises:
         ValidationError: If task structure is invalid with details
     """
-    logger = logging.getLogger("taskgen")
+    logger = logging.getLogger("swegen")
 
     try:
         # Use Harbor's Task model to validate structure

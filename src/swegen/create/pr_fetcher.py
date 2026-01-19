@@ -54,7 +54,7 @@ class GitHubPRFetcher:
         Args:
             allow_unmerged: If True, allow unmerged PRs (for testing/preview). Default False.
         """
-        logger = logging.getLogger("taskgen")
+        logger = logging.getLogger("swegen")
         logger.debug("Fetching PR #%s metadata from %s...", self.pr_number, self.repo)
         pr_data = self._api_get(f"/repos/{self.repo}/pulls/{self.pr_number}")
 
@@ -85,7 +85,7 @@ class GitHubPRFetcher:
 
     def fetch_pr_files(self) -> list[dict]:
         """Fetch list of files changed in the PR."""
-        logger = logging.getLogger("taskgen")
+        logger = logging.getLogger("swegen")
         logger.debug("Fetching changed files for PR #%s...", self.pr_number)
         files_response = self._api_get(f"/repos/{self.repo}/pulls/{self.pr_number}/files")
         # API may return dict with pagination info or list directly
@@ -108,7 +108,7 @@ class GitHubPRFetcher:
 
         Returns a list of issue dictionaries with 'number', 'title', and 'body'.
         """
-        logger = logging.getLogger("taskgen")
+        logger = logging.getLogger("swegen")
         logger.debug("Fetching linked issues for PR #%s...", self.pr_number)
 
         issues = []

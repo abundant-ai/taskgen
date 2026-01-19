@@ -10,10 +10,10 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
-from taskgen.config import CreateConfig, FarmConfig
-from taskgen.create import MissingIssueError, TrivialPRError, ValidationError
-from taskgen.create.create import run_reversal
-from taskgen.create.task_reference import TaskReferenceStore
+from swegen.config import CreateConfig, FarmConfig
+from swegen.create import MissingIssueError, TrivialPRError, ValidationError
+from swegen.create.create import run_reversal
+from swegen.create.task_reference import TaskReferenceStore
 
 
 def _now_utc() -> datetime:

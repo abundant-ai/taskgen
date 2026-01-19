@@ -7,7 +7,7 @@ Check if PRs in your repository can become [Harbor](https://github.com/laude-ins
 **1. Run this command** in your repo:
 
 ```bash
-curl -fL --create-dirs -o .github/workflows/harbor-check.yml https://raw.githubusercontent.com/abundant-ai/taskgen/main/action/harbor-check.yml
+curl -fL --create-dirs -o .github/workflows/harbor-check.yml https://raw.githubusercontent.com/abundant-ai/swe-gen/main/action/harbor-check.yml
 ```
 
 **2. Add secrets to GitHubs** (`Settings` → `Secrets and variables` → `Actions`):

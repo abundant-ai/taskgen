@@ -1,5 +1,5 @@
 [project]
-name = "taskgen"
+name = "swe-gen"
 version = "0.1.0"
 description = "Pipeline to convert GitHub PRs into Harbor tasks"
 readme = "README.md"
@@ -36,13 +36,13 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/abundant-ai/taskgen"
-Repository = "https://github.com/abundant-ai/taskgen"
-Issues = "https://github.com/abundant-ai/taskgen/issues"
+Homepage = "https://github.com/abundant-ai/swe-gen"
+Repository = "https://github.com/abundant-ai/swe-gen"
+Issues = "https://github.com/abundant-ai/swe-gen/issues"
 
 [project.scripts]
 # Console entry to run the Typer CLI directly
-taskgen = "taskgen.cli:app"
+swegen = "swegen.cli:app"
 harbor = "harbor.cli.main:app"
 
 [project.optional-dependencies]
@@ -66,7 +66,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/taskgen"]
+packages = ["src/swegen"]
 
 [tool.black]
 line-length = 100
@@ -93,7 +93,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["taskgen"]
+known-first-party = ["swegen"]
 
 [tool.ruff.format]
 quote-style = "double"

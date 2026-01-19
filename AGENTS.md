@@ -1,10 +1,10 @@
-# AGENTS.md - TaskGen CLI
+# AGENTS.md - SWE-gen CLI
 
 > Pipeline for converting merged GitHub pull requests into Harbor evaluation tasks.
 
 ## Overview
 
-TaskGen CLI automates the creation of [Harbor](https://github.com/laude-institute/harbor) tasks from real-world bug fixes in open-source repositories. The pipeline:
+SWE-gen CLI automates the creation of [Harbor](https://github.com/laude-institute/harbor) tasks from real-world bug fixes in open-source repositories. The pipeline:
 
 1. Takes a merged GitHub PR that fixes a bug
 2. Reverses the PR to recreate the buggy state
@@ -40,13 +40,13 @@ export ANTHROPIC_API_KEY=<key>  # or Claude Code OAuth
 
 ## CLI Commands
 
-Entry point: `taskgen` (defined in `src/taskgen/cli.py`)
+Entry point: `swegen` (defined in `src/swegen/cli.py`)
 
-### `taskgen create`
+### `swegen create`
 Generate a single Harbor task from a merged PR.
 
 ```bash
-taskgen create --repo <owner/repo> --pr <number>
+swegen create --repo <owner/repo> --pr <number>
 ```
 
 Key options:
@@ -57,12 +57,12 @@ Key options:
 - `--no-cache`: Disable reusing cached artifacts from previous tasks
 - `--force`: Bypass local dedupe and regenerate
 
-### `taskgen farm`
+### `swegen farm`
 Continuously process PRs from a repository's entire history.
 
 ```bash
-taskgen farm fastapi/fastapi
-taskgen farm fastapi/fastapi --resume-from 2024-01-15
+swegen farm fastapi/fastapi
+swegen farm fastapi/fastapi --resume-from 2024-01-15
 ```
 
 Key options:
@@ -75,23 +75,23 @@ Key options:
 - `--no-validate`: Skip Harbor validation
 - `--skip-list PATH`: Path to file with task IDs to skip (one per line)
 
-### `taskgen validate`
+### `swegen validate`
 Validate existing Harbor tasks.
 
 ```bash
-taskgen validate tasks/<task_id>
-taskgen validate tasks/  # Batch mode
+swegen validate tasks/<task_id>
+swegen validate tasks/  # Batch mode
 ```
 
-### `taskgen analyze`
+### `swegen analyze`
 Analyze task quality or classify trial outcomes. Has two subcommands:
 
-#### `taskgen analyze task`
+#### `swegen analyze task`
 Run multiple agent trials and analyze task quality.
 
 ```bash
-taskgen analyze task tasks/<task_id> -k 3 -a claude-code
-taskgen analyze task tasks/<task_id> -k 5 --save-to-dir
+swegen analyze task tasks/<task_id> -k 3 -a claude-code
+swegen analyze task tasks/<task_id> -k 5 --save-to-dir
 ```
 
 Key options:
@@ -105,7 +105,7 @@ Key options:
 **Note**: For programmatic access to classification and verdict synthesis (e.g., CI integration), use the library directly:
 
 ```python
-from taskgen.analyze import TrialClassifier, compute_task_verdict, write_trial_analysis_files
+from swegen.analyze import TrialClassifier, compute_task_verdict, write_trial_analysis_files
 
 # Classify a single trial
 classifier = TrialClassifier(model="claude-sonnet-4-5")
@@ -113,7 +113,7 @@ classification = await classifier.classify_trial(trial_dir, task_dir)
 write_trial_analysis_files(trial_dir, classification, task_id, agent, model)
 ```
 
-### `taskgen clean`
+### `swegen clean`
 Remove local artifacts (.state, logs, jobs).
 
 ---
@@ -121,7 +121,7 @@ Remove local artifacts (.state, logs, jobs).
 ## Architecture
 
 ```
-src/taskgen/
+src/swegen/
 ├── cli.py                  # Typer CLI entry point
 ├── config.py               # Configuration dataclasses
 ├── create/                 # Core task generation logic

@@ -5,7 +5,7 @@
 #
 # To use: Copy this file to .github/workflows/harbor-check.yml
 #
-# Learn more: https://github.com/abundant-ai/taskgen
+# Learn more: https://github.com/abundant-ai/swe-gen
 
 name: Harbor Task Check
 
@@ -38,7 +38,7 @@ jobs:
       
       - name: Check Harbor Task Eligibility
         id: harbor-check
-        uses: abundant-ai/taskgen/action@main
+        uses: abundant-ai/swe-gen/action@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           

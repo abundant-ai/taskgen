@@ -13,7 +13,7 @@ from claude_agent_sdk import (
 from harbor.models.trial.result import TrialResult
 from rich.console import Console
 
-from taskgen.create.claude_code_utils import Colors, print_sdk_message
+from swegen.create.claude_code_utils import Colors, print_sdk_message
 
 from .models import (
     BaselineResult,

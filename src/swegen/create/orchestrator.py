@@ -61,7 +61,7 @@ class PRToHarborPipeline:
 
         Returns the task directory path.
         """
-        logger = logging.getLogger("taskgen")
+        logger = logging.getLogger("swegen")
         logger.debug("Creating task scaffold...")
 
         task_dir = tasks_root / self.task_id
@@ -133,7 +133,7 @@ class PRToHarborPipeline:
             cc_result is None if run_cc=False
             task_reference is None if no cached reference exists or use_cache=False
         """
-        logger = logging.getLogger("taskgen")
+        logger = logging.getLogger("swegen")
         logger.info("=" * 60)
         logger.info("Task Generation")
         logger.info("Repo: %s, PR: #%d", self.repo, self.pr_number)

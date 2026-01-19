@@ -14,8 +14,8 @@ from claude_agent_sdk import (
     query,
 )
 
-from taskgen.create.claude_code_utils import Colors, print_sdk_message
-from taskgen.tools.harbor_runner import parse_harbor_outcome
+from swegen.create.claude_code_utils import Colors, print_sdk_message
+from swegen.tools.harbor_runner import parse_harbor_outcome
 
 
 @dataclass
@@ -778,7 +778,7 @@ async def _run_claude_code_session_async(
     environment: str = "docker",
 ) -> ClaudeCodeResult:
     """Async implementation of Claude Code session."""
-    logger = logging.getLogger("taskgen")
+    logger = logging.getLogger("swegen")
     logger.info("Starting Claude Code session for: %s", task_id)
 
     # Resolve all paths to absolute paths for reliable usage

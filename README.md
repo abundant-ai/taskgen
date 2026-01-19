@@ -1,4 +1,4 @@
-# TaskGen CLI
+# SWE-gen CLI
 
 > Convert merged GitHub pull requests into [Harbor](https://github.com/laude-institute/harbor) tasks automatically.
 
@@ -18,10 +18,10 @@ Each task reverses a merged PR to recreate the buggy state, validates tests fail
 uv pip install -e .
 
 # Generate a task from a merged PR
-taskgen create --repo axios/axios --pr 7150
+swegen create --repo axios/axios --pr 7150
 
 # Or farm all PRs from a repo
-taskgen farm fastapi/fastapi
+swegen farm fastapi/fastapi
 ```
 
 ## Installation
@@ -49,16 +49,16 @@ export ANTHROPIC_API_KEY=<api-key>  # or CLAUDE_CODE_OAUTH_TOKEN
 ## Usage
 
 **Commands:**
-- `taskgen create` — Generate task from a merged PR (validates by default)
-- `taskgen farm` — Continuously process PRs from a repository
-- `taskgen validate` — Validate existing Harbor task (NOP + Oracle)
-- `taskgen analyze` — Deep analysis with agent trials to verify task quality
-- `taskgen clean` — Remove .state artifacts
+- `swegen create` — Generate task from a merged PR (validates by default)
+- `swegen farm` — Continuously process PRs from a repository
+- `swegen validate` — Validate existing Harbor task (NOP + Oracle)
+- `swegen analyze` — Deep analysis with agent trials to verify task quality
+- `swegen clean` — Remove .state artifacts
 
 ### Generate a Task
 
 ```bash
-taskgen create --repo <owner/repo> --pr <num>
+swegen create --repo <owner/repo> --pr <num>
 ```
 
 <details>
@@ -84,9 +84,9 @@ taskgen create --repo <owner/repo> --pr <num>
 Stream through entire PR history, process each immediately with automatic state persistence.
 
 ```bash
-taskgen farm fastapi/fastapi
-taskgen farm fastapi/fastapi --resume-from 2024-01-15
-taskgen farm fastapi/fastapi --reset
+swegen farm fastapi/fastapi
+swegen farm fastapi/fastapi --resume-from 2024-01-15
+swegen farm fastapi/fastapi --reset
 ```
 
 **Features:** Page-by-page streaming, automatic resumption, graceful shutdown (Ctrl+C), quality filters (test changes + minimum difficulty)
@@ -122,7 +122,7 @@ taskgen farm fastapi/fastapi --reset
 Verify that a task passes NOP (baseline fails) and Oracle (solution succeeds) agents:
 
 ```bash
-taskgen validate tasks/<task_id>
+swegen validate tasks/<task_id>
 ```
 
 <details>
@@ -146,8 +146,8 @@ taskgen validate tasks/<task_id>
 Run agent trials to verify a task is well-specified and solvable:
 
 ```bash
-taskgen analyze task tasks/<task_id>
-taskgen analyze task tasks/<task_id> -k 5 -a claude-code
+swegen analyze task tasks/<task_id>
+swegen analyze task tasks/<task_id> -k 5 -a claude-code
 ```
 
 <details>
@@ -235,19 +235,19 @@ The pipeline uses a **language-agnostic approach**:
 
 ```bash
 # Generate a Python task
-taskgen create --repo kludex/starlette --pr 2949
+swegen create --repo kludex/starlette --pr 2949
 
 # a JavaScript task
-taskgen create --repo axios/axios --pr 7150
+swegen create --repo axios/axios --pr 7150
 
 # Continuous farming
-taskgen farm colinhacks/zod
+swegen farm colinhacks/zod
 
 # Validate existing task
-taskgen validate examples/axios__axios-7150
+swegen validate examples/axios__axios-7150
 
 # Analyze task quality with agent trials
-taskgen analyze task examples/axios__axios-7150
+swegen analyze task examples/axios__axios-7150
 ```
 
 ## License

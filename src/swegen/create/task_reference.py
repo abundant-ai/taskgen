@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-logger = logging.getLogger("taskgen")
+logger = logging.getLogger("swegen")
 
 
 @dataclass

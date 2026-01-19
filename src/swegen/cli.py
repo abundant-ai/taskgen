@@ -10,14 +10,14 @@ from dotenv import load_dotenv
 from harbor.models.environment_type import EnvironmentType
 from rich.console import Console
 
-from taskgen.config import CreateConfig, FarmConfig
-from taskgen.create import MissingIssueError, TrivialPRError
-from taskgen.create.create import run_reversal
-from taskgen.farm import StreamFarmer
-from taskgen.analyze import AnalyzeArgs, run_analyze, TrialClassifier, write_trial_analysis_files
-from taskgen.tools.clean import run_clean
-from taskgen.tools.validate import ValidateArgs, run_validate
-from taskgen.tools.validate_utils import ValidationError
+from swegen.config import CreateConfig, FarmConfig
+from swegen.create import MissingIssueError, TrivialPRError
+from swegen.create.create import run_reversal
+from swegen.farm import StreamFarmer
+from swegen.analyze import AnalyzeArgs, run_analyze, TrialClassifier, write_trial_analysis_files
+from swegen.tools.clean import run_clean
+from swegen.tools.validate import ValidateArgs, run_validate
+from swegen.tools.validate_utils import ValidationError
 
 load_dotenv()
 
@@ -30,15 +30,15 @@ def _root(
         False,
         "--version",
         "-V",
-        help="Show taskgen version and exit",
+        help="Show swegen version and exit",
         is_eager=True,
     ),
 ) -> None:
     if version:
         try:
-            typer.echo(f"taskgen {_pkg_version('taskgen')}")
+            typer.echo(f"swegen {_pkg_version('swe-gen')}")
         except _PkgNotFound:
-            typer.echo("taskgen (version unknown)")
+            typer.echo("swegen (version unknown)")
         raise typer.Exit()
 
 
@@ -313,10 +313,10 @@ def analyze_task(
 
     Examples:
         # Sequential (default)
-        taskgen analyze task tasks/my-task -k 5
+        swegen analyze task tasks/my-task -k 5
 
         # Parallel (3 trials at once)
-        taskgen analyze task tasks/my-task -k 10 -n 3
+        swegen analyze task tasks/my-task -k 10 -n 3
     """
     run_analyze(
         AnalyzeArgs(
