@@ -20,6 +20,7 @@ class SkeletonParams:
     repo_url: str
     head_sha: str
     base_sha: str
+    pr_number: int
 
 
 def generate_dockerfile(params: SkeletonParams) -> str:
@@ -36,6 +37,12 @@ def generate_dockerfile(params: SkeletonParams) -> str:
     - Dependency installation
     - Build steps (if needed)
     - Post-patch rebuild (if needed)
+    
+    Git clone strategy:
+    - Simple + robust: clone, then fetch the exact commit SHA.
+    - NOTE: `head_sha` currently comes from the PR's HEAD branch tip (GitHub API).
+    - If the PR was squash-merged/rebased, that commit may not be on any normal branch.
+    - In that case, fetching `refs/pull/<n>/head` is a robust fallback without fetching ALL PR refs.
     """
     return f"""FROM ubuntu:24.04
 
@@ -73,8 +80,8 @@ WORKDIR /app
 # Clone repo at HEAD commit (with fix applied)
 RUN git clone {params.repo_url} src && \\
     cd src && \\
-    git fetch origin {params.head_sha} && \\
-    git checkout {params.head_sha} && \\
+    (git fetch --depth 1 origin {params.head_sha} || git fetch --depth 1 origin "+refs/pull/{params.pr_number}/head:refs/remotes/origin/pr/{params.pr_number}") && \\
+    git checkout --detach FETCH_HEAD && \\
     git submodule update --init --recursive
 
 WORKDIR /app/src
@@ -101,6 +108,9 @@ WORKDIR /app/src
 #   Rust: cargo build
 #   Go: go build ./...
 #   Java: mvn compile, gradle build
+
+# If install/build steps touched tracked files, reset them so bug.patch applies cleanly,
+RUN git reset --hard
 
 # Apply bug.patch to revert to buggy state (BASE)
 COPY bug.patch /tmp/bug.patch
