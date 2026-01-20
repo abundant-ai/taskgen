@@ -145,8 +145,8 @@ swegen validate tasks/<task_id>
 Run agent trials to verify a task is well-specified and solvable:
 
 ```bash
-swegen analyze task tasks/<task_id>
-swegen analyze task tasks/<task_id> -k 5 -a claude-code
+swegen analyze tasks/<task_id>
+swegen analyze tasks/<task_id> -k 5 -a claude-code
 ```
 
 <details>
@@ -246,7 +246,7 @@ swegen farm colinhacks/zod
 swegen validate examples/axios__axios-7150
 
 # Analyze task quality with agent trials
-swegen analyze task examples/axios__axios-7150
+swegen analyze examples/axios__axios-7150
 ```
 
 ## License

@@ -84,14 +84,11 @@ swegen validate tasks/  # Batch mode
 ```
 
 ### `swegen analyze`
-Analyze task quality or classify trial outcomes. Has two subcommands:
-
-#### `swegen analyze task`
 Run multiple agent trials and analyze task quality.
 
 ```bash
-swegen analyze task tasks/<task_id> -k 3 -a claude-code
-swegen analyze task tasks/<task_id> -k 5 --save-to-dir
+swegen analyze tasks/<task_id> -k 3 -a claude-code
+swegen analyze tasks/<task_id> -k 5 --save-to-dir
 ```
 
 Key options:
