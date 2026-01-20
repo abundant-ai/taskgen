@@ -26,7 +26,7 @@ from .classifier import (
     compute_task_verdict,
     write_trial_analysis_files,
 )
-from taskgen.tools.harbor_runner import (
+from swegen.tools.harbor_runner import (
     harbor_cmd_base,
     parse_harbor_outcome,
     run_harbor_agent,

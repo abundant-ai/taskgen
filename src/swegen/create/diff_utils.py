@@ -29,7 +29,7 @@ def generate_diffs(
     Returns:
         Tuple of (solution_diff, bug_diff)
     """
-    logger = logging.getLogger("taskgen")
+    logger = logging.getLogger("swegen")
 
     # Get all changed files
     result = subprocess.run(
@@ -100,7 +100,7 @@ def extract_test_files(
     Returns:
         List of successfully extracted test file paths (repo-relative)
     """
-    logger = logging.getLogger("taskgen")
+    logger = logging.getLogger("swegen")
     logger.debug("Extracting test files from HEAD commit...")
 
     # Create tests directory in task output

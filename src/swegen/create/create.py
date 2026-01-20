@@ -16,9 +16,9 @@ from rich.table import Table
 from rich.text import Text
 from rich.traceback import install as rich_traceback_install
 
-from taskgen.config import CreateConfig
-from taskgen.tools.harbor_runner import parse_harbor_outcome, run_harbor_agent
-from taskgen.tools.validate_utils import ValidationError, run_nop_oracle
+from swegen.config import CreateConfig
+from swegen.tools.harbor_runner import parse_harbor_outcome, run_harbor_agent
+from swegen.tools.validate_utils import ValidationError, run_nop_oracle
 
 from . import MissingIssueError, PRToHarborPipeline, TrivialPRError
 from .claude_code_runner import ClaudeCodeResult, run_claude_code_session
@@ -53,7 +53,7 @@ def _check_linked_issues(
     try:
         linked_issues = pipeline.pr_fetcher.fetch_linked_issues()
     except Exception as e:
-        logging.getLogger("taskgen").debug("Could not fetch linked issues: %s", str(e))
+        logging.getLogger("swegen").debug("Could not fetch linked issues: %s", str(e))
 
     if require_issue:
         if not linked_issues:
@@ -97,7 +97,7 @@ def _check_dedupe(
         return False
 
     last_rec = None
-    logger = logging.getLogger("taskgen")
+    logger = logging.getLogger("swegen")
     with open(state_file) as f:
         for line in f:
             try:
@@ -259,7 +259,7 @@ def _save_state_record(
 
     This is non-fatal - errors are logged but do not stop execution.
     """
-    logger = logging.getLogger("taskgen")
+    logger = logging.getLogger("swegen")
     try:
         state_dir.mkdir(parents=True, exist_ok=True)
         rec = {
@@ -694,7 +694,7 @@ def _run_harbor_with_status(
 
 
 def _configure_file_logger(path: Path) -> None:
-    logger = logging.getLogger("taskgen")
+    logger = logging.getLogger("swegen")
     logger.setLevel(logging.DEBUG)
     logger.propagate = False
     # Clear existing handlers

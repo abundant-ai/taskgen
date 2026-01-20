@@ -285,7 +285,7 @@ def evaluate_and_generate_task(
     Raises:
         RuntimeError: If API key is missing or LLM call fails
     """
-    logger = logging.getLogger("taskgen")
+    logger = logging.getLogger("swegen")
 
     # Check API key
     if not (api_key or os.getenv("OPENAI_API_KEY")):

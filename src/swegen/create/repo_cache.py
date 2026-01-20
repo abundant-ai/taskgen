@@ -17,7 +17,7 @@ class RepoCache:
         """
         self.cache_dir = cache_dir or Path(".cache/repos")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.logger = logging.getLogger("taskgen")
+        self.logger = logging.getLogger("swegen")
 
     def get_or_clone(
         self,

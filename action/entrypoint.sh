@@ -4,9 +4,9 @@ set -euo pipefail
 # =============================================================================
 # Harbor Task Checker - GitHub Action Entrypoint
 # 
-# This script wraps the taskgen CLI to:
+# This script wraps the swegen CLI to:
 # 1. Extract PR context from GitHub environment
-# 2. Run taskgen create with appropriate flags
+# 2. Run swegen create with appropriate flags
 # 3. Format output for GitHub (Job Summary, annotations, outputs)
 # 4. Upload task artifact if validation passes
 # =============================================================================
@@ -86,7 +86,7 @@ if [[ -z "${OPENAI_API_KEY:-}" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# Build taskgen command
+# Build swegen command
 # -----------------------------------------------------------------------------
 
 # Use GITHUB_WORKSPACE so artifacts persist between steps
@@ -98,10 +98,10 @@ mkdir -p "$TASK_OUTPUT" "$STATE_DIR"
 TASK_ID="${REPO//\//__}-${PR_NUMBER}"
 TASK_ID=$(echo "$TASK_ID" | tr '[:upper:]' '[:lower:]')
 
-echo "::group::Building taskgen command"
+echo "::group::Building swegen command"
 echo "Task ID: $TASK_ID"
 
-CMD="taskgen create"
+CMD="swegen create"
 CMD+=" --repo $REPO"
 CMD+=" --pr $PR_NUMBER"
 CMD+=" --output $TASK_OUTPUT"
@@ -136,13 +136,13 @@ echo "Command: $CMD"
 echo "::endgroup::"
 
 # -----------------------------------------------------------------------------
-# Run taskgen
+# Run swegen
 # -----------------------------------------------------------------------------
 
-echo "::group::Running taskgen create"
+echo "::group::Running swegen create"
 
 TASK_DIR="$TASK_OUTPUT/$TASK_ID"
-LOG_FILE="/tmp/taskgen-output.log"
+LOG_FILE="/tmp/swegen-output.log"
 
 # Capture output and exit code
 set +e
