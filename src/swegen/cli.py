@@ -367,10 +367,9 @@ def farm(
         show_default=True,
     ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
-    issue_only: bool = typer.Option(
+    require_issue: bool = typer.Option(
         True,
-        "--issue-only",
-        help="Only process PRs with linked issues (higher quality instructions)",
+        help="Require PR to have a linked issue (higher quality); --no-require-issue to process all PRs",
     ),
     validate: bool = typer.Option(
         True, help="Run Harbor validation after CC; --no-validate to skip"
@@ -401,7 +400,7 @@ def farm(
         max_source_files=max_source_files,
         environment=EnvironmentType(environment),
         verbose=verbose,
-        issue_only=issue_only,
+        require_issue=require_issue,
         validate=validate,
     )
 

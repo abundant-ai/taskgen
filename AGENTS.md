@@ -67,7 +67,7 @@ swegen farm fastapi/fastapi --resume-from 2024-01-15
 
 Key options:
 - `--dry-run`: Preview without generation
-- `--issue-only`: Only process PRs with linked issues (default: True)
+- `--no-require-issue`: Allow PRs without linked issues (default requires issue)
 - `--reset`: Start from beginning
 - `--timeout`: Timeout per PR in seconds (default: 300)
 - `--cc-timeout`: Claude Code session timeout (default: 3200)
@@ -261,7 +261,7 @@ PRs are filtered by:
 - Must be merged to primary branch
 - Must include test changes
 - Must modify minimum number of files (configurable with `--min-source-files` and `--max-source-files`)
-- Must have linked issue by default (disable with `--no-issue-only` flag, since `--issue-only` defaults to True)
+- Must have linked issue by default (disable with `--no-require-issue`)
 - Must pass LLM substantiality check (disable with `--no-require-minimum-difficulty`)
 
 ---
@@ -324,10 +324,10 @@ Key defaults:
 - Claude Code always used for task completion
 - Minimum 3 source files required for task generation (configurable via `--min-source-files`)
 - Maximum 10 source files to avoid large refactors (configurable via `--max-source-files`)
-- Linked issue required for high-quality instructions (disable with `--no-require-issue` for create, `--no-issue-only` for farm)
+- Linked issue required for high-quality instructions (disable with `--no-require-issue`)
 - Task references enabled by default for faster generation
 - Harbor validation enabled by default (disable with `--no-validate`)
-- Farm command: `--issue-only` defaults to True (only process PRs with linked issues)
+- Farm command: `--require-issue` defaults to True (only process PRs with linked issues)
 - Farm command: `--cc-timeout` defaults to 3200 seconds (~53 minutes)
 
 ---

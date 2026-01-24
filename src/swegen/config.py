@@ -86,7 +86,7 @@ class FarmConfig:
         max_source_files: Maximum number of source files allowed to avoid large refactors (default: 10)
         environment: Environment type for Harbor runs (docker, daytona, e2b, modal, runloop, gke)
         verbose: Enable verbose output
-        issue_only: Only process PRs that have linked issues (higher quality instructions)
+        require_issue: Require PR to have a linked issue (higher quality instructions)
         validate: Run Harbor validation after CC (useful when CC times out but task may be valid)
     """
 
@@ -109,7 +109,7 @@ class FarmConfig:
     max_source_files: int = 10
     environment: EnvironmentType = EnvironmentType.DOCKER
     verbose: bool = False
-    issue_only: bool = False
+    require_issue: bool = True
     validate: bool = True
 
 

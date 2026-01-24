@@ -178,9 +178,9 @@ class StreamFarmer:
         # pipeline info
         self.console.print("[green]Only PRs that modify tests will be considered.[/green]")
 
-        if self.config.issue_only:
+        if self.config.require_issue:
             self.console.print(
-                "[magenta]ISSUE-ONLY MODE - only PRs with linked issues will be processed[/magenta]"
+                "[magenta]REQUIRE-ISSUE MODE - only PRs with linked issues will be processed[/magenta]"
             )
 
         if self.config.dry_run:

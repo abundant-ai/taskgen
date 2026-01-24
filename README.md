@@ -115,7 +115,7 @@ swegen farm fastapi/fastapi --resume-from 2024-01-15
 - `--dry-run` — Preview without generation
 - `--force` — Regenerate even if task already exists (default: true)
 - `--no-validate` — Skip Harbor validation step
-- `--issue-only` — Only process PRs with linked issues (default: True)
+- `--require-issue` / `--no-require-issue` — Require PRs to have linked issues (default: True)
 - `--no-require-minimum-difficulty` — Skip 3+ file and LLM checks
 - `--min-source-files N` — Minimum number of source files required (default: 3, tests excluded)
 - `--max-source-files N` — Maximum number of source files to avoid large refactors (default: 10, tests excluded)
