@@ -77,7 +77,7 @@ swegen create --repo <owner/repo> --pr <num>
 <summary>Options</summary>
 
 - `--output PATH` — Output directory for generated tasks (default: `tasks`)
-- `--state-dir PATH` — State directory for cache/logs (default: `.state`)
+- `--state-dir PATH` — State directory for cache/logs (default: `.swegen`)
 - `--cc-timeout N` — Claude Code session timeout in seconds (default: 3200)
 - `--env, -e TYPE` — Environment type: `docker`, `daytona`, `e2b`, `modal`, `runloop`, `gke` (default: `docker`)
 - `--no-validate` — Skip Harbor validations
@@ -104,7 +104,7 @@ swegen farm fastapi/fastapi --resume-from 2024-01-15
 <summary>Options</summary>
 
 - `--output PATH` — Output directory for generated tasks (default: `tasks`)
-- `--state-dir PATH` — State directory for cache/logs (default: `.state`)
+- `--state-dir PATH` — State directory for cache/logs (default: `.swegen`)
 - `--timeout N` — Timeout per PR in seconds (default: 300)
 - `--cc-timeout N` — Claude Code session timeout (default: 3200)
 - `--task-delay N` — Delay between tasks in seconds (default: 60)
@@ -139,7 +139,7 @@ swegen validate <task_id>
 
 - `--task, -t ID` — Task ID when path points to dataset root
 - `--agent TYPE` — `both`, `nop`, or `oracle` (default: `both`)
-- `--jobs-dir PATH` — Directory to store Harbor job artifacts (default: `.state/harbor-jobs`)
+- `--jobs-dir PATH` — Directory to store Harbor job artifacts (default: `.swegen/harbor-jobs`)
 - `--env, -e TYPE` — Environment type: `docker`, `daytona`, `e2b`, `modal`, `runloop`, `gke` (default: `docker`)
 - `--timeout-multiplier N` — Multiply default timeouts
 - `--max-parallel N` — Max parallel validations (default: 8)
@@ -184,7 +184,7 @@ swegen analyze <task_id> -k 5 -a claude-code
 - `-m, --model MODEL` — Model for agent trials (default: `anthropic/claude-sonnet-4-5`)
 - `-k, --n-trials N` — Number of trials (default: 3)
 - `-n, --n-concurrent N` — Number of concurrent trials (default: 3, 1=sequential)
-- `--jobs-dir PATH` — Directory to store job artifacts (default: `.state/analyze-jobs`)
+- `--jobs-dir PATH` — Directory to store job artifacts (default: `.swegen/analyze-jobs`)
 - `--analysis-model MODEL` — Model for Claude Code classification (default: `claude-sonnet-4-5`)
 - `--env, -e TYPE` — Environment type: `docker`, `daytona`, `e2b`, `modal`, `runloop`, `gke` (default: `docker`)
 - `--skip-quality-check` — Skip static quality check

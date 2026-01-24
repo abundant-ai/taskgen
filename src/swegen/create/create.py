@@ -426,7 +426,7 @@ def run_reversal(config: CreateConfig) -> None:
         # Simple local dedupe: check-before
         # Lowercase repo for consistency (GitHub is case-insensitive, Docker requires lowercase)
         repo_key = f"{pipeline.repo.lower()}#{config.pr}"
-        state_dir: Path = config.state_dir or Path(".state")
+        state_dir: Path = config.state_dir or Path(".swegen")
         state_file = state_dir / "create.jsonl"
         if _check_dedupe(console, repo_key, state_file, config.force):
             return
@@ -605,7 +605,7 @@ def run_reversal(config: CreateConfig) -> None:
             harbor_jobs = (
                 config.state_dir / "harbor-jobs"
                 if isinstance(config.state_dir, Path)
-                else Path(".state") / "harbor-jobs"
+                else Path(".swegen") / "harbor-jobs"
             )
             harbor_jobs = harbor_jobs.resolve()
             harbor_jobs.mkdir(parents=True, exist_ok=True)

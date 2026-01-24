@@ -62,7 +62,7 @@ def create_cmd(
     ),
     force: bool = typer.Option(False, help="Bypass local dedupe and regenerate"),
     state_dir: Path = typer.Option(
-        Path(".state"), help="Local dedupe state dir", show_default=True
+        Path(".swegen"), help="Local dedupe state dir", show_default=True
     ),
     no_cache: bool = typer.Option(
         False, "--no-cache", help="Disable reusing cached Dockerfiles/test.sh from previous tasks"
@@ -136,7 +136,7 @@ def validate(
     | None = typer.Option(None, "--task", "-t", help="Task ID when --path points to dataset root"),
     agent: str = typer.Option("both", help="Agent to run: both|nop|oracle", show_default=True),
     jobs_dir: Path = typer.Option(
-        Path(".state/harbor-jobs"),
+        Path(".swegen/harbor-jobs"),
         help="Directory to store Harbor job artifacts",
         show_default=True,
     ),
@@ -209,7 +209,7 @@ def analyze(
         3, "-n", "--n-concurrent", help="Number of concurrent trials (1=sequential, 3-5 recommended)", show_default=True
     ),
     jobs_dir: Path = typer.Option(
-        Path(".state/analyze-jobs"),
+        Path(".swegen/analyze-jobs"),
         "--jobs-dir",
         help="Directory to store job artifacts",
         show_default=True,
@@ -320,7 +320,7 @@ def farm(
         Path("tasks"), help="Output directory for generated tasks", show_default=True
     ),
     state_dir: Path = typer.Option(
-        Path(".state"), help="State directory for cache/logs", show_default=True
+        Path(".swegen"), help="State directory for cache/logs", show_default=True
     ),
     force: bool = typer.Option(True, help="Regenerate even if task already exists"),
     timeout: int = typer.Option(300, help="Timeout per PR in seconds", show_default=True),

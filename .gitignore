@@ -46,6 +46,7 @@ output/
 
 runs/
 jobs/
-.state/
+.swegen/
 .cursor/
 .cursor
+.state/

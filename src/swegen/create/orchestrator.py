@@ -123,7 +123,7 @@ class PRToHarborPipeline:
             cc_timeout: Timeout for CC session in seconds
             verbose: If True, stream CC output
             use_cache: If True, try to reuse cached artifacts from previous successful PRs
-            state_dir: State directory for task references (default: .state)
+            state_dir: State directory for task references (default: .swegen)
             require_minimum_difficulty: If True, require 3+ source files modified
             min_source_files: Minimum number of source files required (default: 3)
             max_source_files: Maximum number of source files allowed to avoid large refactors (default: 10)

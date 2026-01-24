@@ -91,7 +91,7 @@ fi
 
 # Use GITHUB_WORKSPACE so artifacts persist between steps
 TASK_OUTPUT="${GITHUB_WORKSPACE:-/tmp}/harbor-tasks"
-STATE_DIR="${GITHUB_WORKSPACE:-/tmp}/.state"
+STATE_DIR="${GITHUB_WORKSPACE:-/tmp}/.swegen"
 mkdir -p "$TASK_OUTPUT" "$STATE_DIR"
 
 # Generate task ID (lowercase, replace / with __)

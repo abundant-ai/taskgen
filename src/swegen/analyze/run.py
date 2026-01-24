@@ -118,7 +118,7 @@ class AnalyzeArgs:
     model: str = "anthropic/claude-sonnet-4-5"
     n_trials: int = 3
     n_concurrent: int = 1  # Number of concurrent trials (matches Harbor's -n flag)
-    jobs_dir: Path = Path(".state/analyze-jobs")
+    jobs_dir: Path = Path(".swegen/analyze-jobs")
     skip_quality_check: bool = False
     skip_baseline: bool = False  # Skip baseline validation (nop/oracle)
     skip_classify: bool = False  # Skip Claude Code classification

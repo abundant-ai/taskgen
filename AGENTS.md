@@ -249,7 +249,7 @@ The farm system enables continuous processing of a repository's PR history:
 
 - **StreamState** (`state.py`) - Persistence for resumability
   - Tracks processed PRs, success/failure counts
-  - Saves to `.state/stream_farm/<repo>.json`
+  - Saves to `.swegen/stream_farm/<repo>.json`
 
 - **farm_hand** (`farm_hand.py`) - Per-PR processing
   - Calls `run_reversal()` for each PR
@@ -334,10 +334,10 @@ Key defaults:
 
 ## State Management
 
-State is persisted in `.state/`:
+State is persisted in `.swegen/`:
 
 ```
-.state/
+.swegen/
 ├── create.jsonl      # Processed PRs (deduplication)
 ├── stream_farm/        # Farm state per repo
 │   └── <repo>.json
