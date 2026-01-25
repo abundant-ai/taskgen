@@ -1,5 +1,5 @@
 # Harbor Task Checker - GitHub Action
-# 
+#
 # Checks if a PR in your repository can become a Harbor task for LLM training/eval.
 # Learn more: https://github.com/abundant-ai/swe-gen
 
@@ -16,44 +16,44 @@ inputs:
     description: 'GitHub token for API access'
     required: true
     default: ${{ github.token }}
-  
+
   claude_code_oauth_token:
     description: 'Claude Code OAuth token (preferred for full validation)'
     required: false
-  
+
   anthropic_api_key:
     description: 'Anthropic API key for Claude Code (fallback if no OAuth token)'
     required: false
-  
+
   openai_api_key:
     description: 'OpenAI API key for PR evaluation'
     required: true
-  
+
   skip_validation:
     description: 'Skip Harbor NOP/Oracle Docker validation (faster but less accurate)'
     required: false
     default: 'false'
-  
+
   skip_llm_check:
     description: 'Skip LLM-based substantiality evaluation'
     required: false
     default: 'false'
-  
+
   require_merged:
     description: 'Only check merged PRs (set to false for early feedback on open PRs)'
     required: false
     default: 'false'
-  
+
   min_source_files:
     description: 'Minimum number of source files required (default: 3)'
     required: false
     default: '3'
-  
+
   max_source_files:
     description: 'Maximum number of source files to avoid large refactors (default: 10)'
     required: false
     default: '10'
-  
+
   cc_timeout:
     description: 'Timeout for Claude Code session in seconds (default: 1800)'
     required: false
@@ -63,15 +63,15 @@ outputs:
   eligible:
     description: 'Whether the PR is eligible (true/false)'
     value: ${{ steps.run-check.outputs.eligible }}
-  
+
   reason:
     description: 'Human-readable explanation of eligibility result'
     value: ${{ steps.run-check.outputs.reason }}
-  
+
   task_id:
     description: 'Generated task ID (if eligible)'
     value: ${{ steps.run-check.outputs.task_id }}
-  
+
   artifact_name:
     description: 'Name of uploaded artifact containing the task (if eligible)'
     value: ${{ steps.run-check.outputs.artifact_name }}
@@ -83,23 +83,23 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    
+
     - name: Install uv
       uses: astral-sh/setup-uv@v4
-      
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-    
+
     - name: Install Claude Code CLI
       shell: bash
       run: npm install -g @anthropic-ai/claude-code
-    
+
     - name: Install swegen
       shell: bash
       run: uv pip install --system git+https://github.com/abundant-ai/swe-gen.git@${{ github.action_ref || 'main' }}
-    
+
     - name: Run Harbor Task Check
       id: run-check
       shell: bash
@@ -115,4 +115,3 @@ runs:
         INPUT_MAX_SOURCE_FILES: ${{ inputs.max_source_files }}
         INPUT_CC_TIMEOUT: ${{ inputs.cc_timeout }}
       run: ${{ github.action_path }}/entrypoint.sh
-

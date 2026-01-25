@@ -1,5 +1,5 @@
 # Harbor Task Checker
-# 
+#
 # This workflow checks if PRs in this repository can become Harbor tasks
 # for LLM training and evaluation.
 #
@@ -12,7 +12,7 @@ name: Harbor Task Check
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  
+
   # Uncomment to only check merged PRs:
   # pull_request:
   #   types: [closed]
@@ -21,53 +21,53 @@ on:
 jobs:
   check-harbor-eligibility:
     runs-on: ubuntu-latest
-    
+
     # Skip if PR is closed without merging (when using closed trigger)
     # if: github.event.pull_request.merged == true
-    
+
     permissions:
       contents: read
       actions: write        # Required for artifact upload
       pull-requests: read   # Required to read PR details
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for diff generation
-      
+
       - name: Check Harbor Task Eligibility
         id: harbor-check
         uses: abundant-ai/swe-gen/action@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          
+
           # === API Keys ===
           # Claude Code auth (use ONE of these):
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}  # Preferred
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}              # Fallback
-          
+
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          
+
           # === Configuration ===
-          
+
           # Skip Docker-based NOP/Oracle validation (faster, but less accurate)
           # Useful for quick feedback without API keys
           # skip_validation: true
-          
+
           # Skip LLM-based substantiality check
           # skip_llm_check: true
-          
+
           # Only check merged PRs (more conservative)
           # require_merged: true
-          
+
           # Source file requirements (default: 3-10)
           # min_source_files: 3
           # max_source_files: 10
-          
+
           # Claude Code timeout in seconds (default: 1800 = 30 min)
           # cc_timeout: 1800
-      
+
       # Upload task artifact (if eligible)
       - name: Upload Task Artifact
         if: steps.harbor-check.outputs.eligible == 'true'
@@ -76,7 +76,7 @@ jobs:
           name: ${{ steps.harbor-check.outputs.artifact_name }}
           path: ${{ github.workspace }}/harbor-tasks/${{ steps.harbor-check.outputs.task_id }}
           retention-days: 30
-      
+
       # Optional: Add comment to PR with results
       # - name: Comment on PR
       #   if: always()
@@ -86,15 +86,14 @@ jobs:
       #       const eligible = '${{ steps.harbor-check.outputs.eligible }}' === 'true';
       #       const reason = '${{ steps.harbor-check.outputs.reason }}';
       #       const taskId = '${{ steps.harbor-check.outputs.task_id }}';
-      #       
+      #
       #       const body = eligible
       #         ? `✅ **Harbor Task Eligible**\n\nThis PR can become task \`${taskId}\`. See the workflow summary for submission instructions.`
       #         : `ℹ️ **Not Harbor Task Eligible**\n\n${reason}`;
-      #       
+      #
       #       github.rest.issues.createComment({
       #         issue_number: context.issue.number,
       #         owner: context.repo.owner,
       #         repo: context.repo.repo,
       #         body: body
       #       });
-

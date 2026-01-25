@@ -134,7 +134,9 @@ def parse_harbor_outcome(job_result_path: Path | None) -> HarborOutcome:
         for trial_result in job_result.trial_results:
             if getattr(trial_result, "exception_info", None):
                 exc = trial_result.exception_info
-                msg = getattr(exc, "exception_message", None) or getattr(exc, "exception_type", None)
+                msg = getattr(exc, "exception_message", None) or getattr(
+                    exc, "exception_type", None
+                )
                 if msg:
                     error = str(msg)
                     break
@@ -173,7 +175,9 @@ def parse_harbor_outcome(job_result_path: Path | None) -> HarborOutcome:
 
                 if error is None and getattr(trial_result, "exception_info", None):
                     exc = trial_result.exception_info
-                    msg = getattr(exc, "exception_message", None) or getattr(exc, "exception_type", None)
+                    msg = getattr(exc, "exception_message", None) or getattr(
+                        exc, "exception_type", None
+                    )
                     if msg:
                         error = str(msg)
 

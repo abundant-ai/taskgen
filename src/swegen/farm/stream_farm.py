@@ -148,7 +148,7 @@ class StreamFarmer:
 
         return None
 
-    def _handle_shutdown(self, signum, frame):
+    def _handle_shutdown(self, _signum, _frame):
         """Handle graceful shutdown on interrupt."""
         self.console.print("\n[yellow]Shutdown requested... finishing current PR...[/yellow]")
         self.shutdown_requested = True
@@ -225,8 +225,8 @@ class StreamFarmer:
 
         # Mark as processed with detailed tracking
         self.state.mark_processed(
-            pr.number, 
-            pr.created_at, 
+            pr.number,
+            pr.created_at,
             result.status == "success",
             task_id=result.task_id if result.status == "success" else None,
             category=result.category,
@@ -278,9 +278,13 @@ class StreamFarmer:
             failure_summary.append(f"No Issue: {len(self.state.no_issue_prs)}")
         if len(self.state.validation_failed_prs) > 0:
             failure_summary.append(f"Validation: {len(self.state.validation_failed_prs)}")
-        
+
         failure_text = ", ".join(failure_summary[:3]) if failure_summary else "None"
-        success_rate = (self.state.successful / self.state.total_processed * 100) if self.state.total_processed > 0 else 0
+        success_rate = (
+            (self.state.successful / self.state.total_processed * 100)
+            if self.state.total_processed > 0
+            else 0
+        )
 
         self.console.print(
             Panel(
@@ -360,7 +364,7 @@ class StreamFarmer:
         table.add_row("PRs Processed", str(self.state.total_processed))
         table.add_row("Successful", f"[green]{self.state.successful}[/green]")
         table.add_row("Failed", f"[red]{self.state.failed}[/red]")
-        
+
         # Add detailed breakdown
         if self.state.failed > 0:
             table.add_row("", "")  # Spacer

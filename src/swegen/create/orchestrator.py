@@ -14,10 +14,10 @@ from .task_instruction import evaluate_and_generate_task
 from .task_reference import TaskReference, TaskReferenceStore
 from .task_skeleton import (
     SkeletonParams,
-    generate_instruction_md,
-    generate_task_toml,
     generate_dockerfile,
+    generate_instruction_md,
     generate_solve_sh,
+    generate_task_toml,
     generate_test_sh,
 )
 from .utils import check_multi_file_requirement, identify_test_files
@@ -26,13 +26,9 @@ from .utils import check_multi_file_requirement, identify_test_files
 class TrivialPRError(Exception):
     """Raised when a PR is too trivial to generate a task from."""
 
-    pass
-
 
 class MissingIssueError(Exception):
     """Raised when a PR has no linked issue and require_issue is enabled."""
-
-    pass
 
 
 class PRToHarborPipeline:
@@ -89,6 +85,7 @@ class PRToHarborPipeline:
         repo_path: Path | None = None,
         metadata: dict | None = None,
         linked_issues: list | None = None,
+        allow_unmerged: bool = False,
         run_cc: bool = True,
         cc_timeout: int = 3200,
         verbose: bool = True,
@@ -147,7 +144,7 @@ class PRToHarborPipeline:
 
         # Step 1: Fetch PR metadata (use provided or fetch)
         if metadata is None:
-            metadata = self.pr_fetcher.fetch_pr_metadata(allow_unmerged=self.config.allow_unmerged)
+            metadata = self.pr_fetcher.fetch_pr_metadata(allow_unmerged=allow_unmerged)
 
         # Fetch linked issues for better task descriptions (use provided or fetch)
         if linked_issues is None:
@@ -238,7 +235,7 @@ class PRToHarborPipeline:
                     if test_file.is_file():
                         try:
                             # Read as text, skip binary files
-                            content = test_file.read_text(encoding='utf-8', errors='ignore')
+                            content = test_file.read_text(encoding="utf-8", errors="ignore")
                             # Store with relative path from tests/ dir
                             rel_path = test_file.relative_to(test_dir)
                             test_contents[str(rel_path)] = content
@@ -328,9 +325,7 @@ class PRToHarborPipeline:
                         f"from PR #{task_reference.pr_number} (should be much faster)..."
                     )
                 else:
-                    logger.info(
-                        "Running CC session (will detect language automatically)..."
-                    )
+                    logger.info("Running CC session (will detect language automatically)...")
 
                 cc_result = run_claude_code_session(
                     repo=self.repo,

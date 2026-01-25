@@ -54,7 +54,7 @@ def run_validate(args: ValidateArgs) -> None:
     if task_id is None:
         _run_batch_mode(args, dataset_path)
     else:
-        _run_single_mode(args, dataset_path, task_id, task_dir)
+        _run_single_mode(args, dataset_path, task_id)
 
 
 def _resolve_paths(args: ValidateArgs) -> tuple[Path, str | None, Path | None]:
@@ -94,7 +94,7 @@ def _resolve_paths(args: ValidateArgs) -> tuple[Path, str | None, Path | None]:
 # ============================================================================
 
 
-def _run_single_mode(args: ValidateArgs, dataset_path: Path, task_id: str, task_dir: Path) -> None:
+def _run_single_mode(args: ValidateArgs, dataset_path: Path, task_id: str) -> None:
     """Validate a single task with traditional output."""
     jobs_dir = args.jobs_dir.resolve()
     jobs_dir.mkdir(parents=True, exist_ok=True)
@@ -227,7 +227,7 @@ async def _validate_batch(
 ) -> list[ValidationResult]:
     """Run validations in parallel with progress bar."""
     semaphore = asyncio.Semaphore(max_parallel)
-    
+
     # Track completed count for docker pruning
     completed_count = 0
     prune_lock = asyncio.Lock()
@@ -325,7 +325,7 @@ async def _validate_batch(
             return
         if count % docker_prune_batch != 0:
             return
-        
+
         async with prune_lock:
             await asyncio.to_thread(_prune_docker, console)
 
@@ -344,7 +344,7 @@ async def _validate_batch(
             for coro in asyncio.as_completed([validate_one(d) for d in task_dirs]):
                 results.append(await coro)
                 progress.update(task_prog, advance=1)
-                
+
                 # Docker cleanup after batch (local docker only)
                 completed_count = len(results)
                 await maybe_prune_docker(completed_count)
@@ -492,9 +492,7 @@ def _add_result_row(table: Table, result: ValidationResult, agent: str) -> None:
 def _prune_docker(console: Console) -> None:
     """Run docker cleanup to free disk space."""
     if shutil.which("docker") is None:
-        console.print(
-            "[yellow]Skipping docker prune (docker binary not found in PATH).[/yellow]"
-        )
+        console.print("[yellow]Skipping docker prune (docker binary not found in PATH).[/yellow]")
         return
 
     console.print(

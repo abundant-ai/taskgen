@@ -123,4 +123,3 @@ Return ONLY valid JSON (no markdown, no code blocks, no explanation):
 - **Be skeptical of BAD_FAILURE**: "Underspecified Instruction" is often over-diagnosed. Ask: could the agent have figured this out by exploring the codebase?
 - **Low pass rates are GOOD**: 25% pass rate on a hard task is ideal for benchmarking
 - **Successes prove solvability**: Any success means the task CAN be solved with the given instruction
-

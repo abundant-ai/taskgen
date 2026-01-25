@@ -17,7 +17,7 @@ from rich.text import Text
 from rich.traceback import install as rich_traceback_install
 
 from swegen.config import CreateConfig
-from swegen.tools.harbor_runner import parse_harbor_outcome, run_harbor_agent
+from swegen.tools.harbor_runner import run_harbor_agent
 from swegen.tools.validate_utils import ValidationError, run_nop_oracle
 
 from . import MissingIssueError, PRToHarborPipeline, TrivialPRError
@@ -272,7 +272,7 @@ def _save_state_record(
         }
         with open(state_file, "a") as f:
             f.write(json.dumps(rec) + "\n")
-    except (OSError, IOError, PermissionError, ValueError) as e:
+    except (OSError, PermissionError, ValueError) as e:
         # Non-fatal; log but continue
         logger.warning(f"Failed to save state record for {repo_key}: {e}")
     except Exception as e:

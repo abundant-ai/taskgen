@@ -9,11 +9,11 @@ from dotenv import load_dotenv
 from harbor.models.environment_type import EnvironmentType
 from rich.console import Console
 
+from swegen.analyze import AnalyzeArgs, run_analyze
 from swegen.config import CreateConfig, FarmConfig
 from swegen.create import MissingIssueError, TrivialPRError
 from swegen.create.create import run_reversal
 from swegen.farm import StreamFarmer
-from swegen.analyze import AnalyzeArgs, run_analyze
 from swegen.tools.validate import ValidateArgs, run_validate
 from swegen.tools.validate_utils import ValidationError
 
@@ -131,16 +131,18 @@ def validate(
         ...,
         help="Path to Harbor dataset root, specific task directory, or task ID when used with dataset root",
     ),
-    task: str
-    | None = typer.Option(None, "--task", "-t", help="Task ID when --path points to dataset root"),
+    task: str | None = typer.Option(
+        None, "--task", "-t", help="Task ID when --path points to dataset root"
+    ),
     agent: str = typer.Option("both", help="Agent to run: both|nop|oracle", show_default=True),
     jobs_dir: Path = typer.Option(
         Path(".swegen/harbor-jobs"),
         help="Directory to store Harbor job artifacts",
         show_default=True,
     ),
-    timeout_multiplier: float
-    | None = typer.Option(None, help="Multiply default timeouts (e.g., 3.0)"),
+    timeout_multiplier: float | None = typer.Option(
+        None, help="Multiply default timeouts (e.g., 3.0)"
+    ),
     environment: str = typer.Option(
         "docker",
         "-e",
@@ -158,8 +160,7 @@ def validate(
         "--show-passed",
         help="Show passed tasks in output (batch mode: default shows only failures)",
     ),
-    output: Path
-    | None = typer.Option(
+    output: Path | None = typer.Option(
         None, "-o", "--output", help="Write results to file as they complete (batch mode only)"
     ),
     docker_prune_batch: int = typer.Option(
@@ -205,7 +206,11 @@ def analyze(
         3, "-k", "--n-trials", help="Number of trials to run", show_default=True
     ),
     n_concurrent: int = typer.Option(
-        3, "-n", "--n-concurrent", help="Number of concurrent trials (1=sequential, 3-5 recommended)", show_default=True
+        3,
+        "-n",
+        "--n-concurrent",
+        help="Number of concurrent trials (1=sequential, 3-5 recommended)",
+        show_default=True,
     ),
     jobs_dir: Path = typer.Option(
         Path(".swegen/analyze-jobs"),
@@ -302,8 +307,6 @@ def analyze(
     )
 
 
-
-
 @app.command(help="Continuous PR farming - stream through entire PR history")
 def farm(
     repo: str = typer.Argument(
@@ -325,8 +328,7 @@ def farm(
     ),
     task_delay: int = typer.Option(60, help="Delay between tasks in seconds", show_default=True),
     reset: bool = typer.Option(False, "--reset", help="Reset state and start from beginning"),
-    resume_from: str
-    | None = typer.Option(
+    resume_from: str | None = typer.Option(
         None, help="Resume from date (e.g., '2024-01-15' or '2024-01-15T10:30:00Z')"
     ),
     dry_run: bool = typer.Option(
@@ -335,8 +337,9 @@ def farm(
     docker_prune_batch: int = typer.Option(
         5, help="Run docker cleanup after every N PRs (0 to disable)", show_default=True
     ),
-    skip_list: str
-    | None = typer.Option(None, help="Path to file with task IDs to skip (one per line)"),
+    skip_list: str | None = typer.Option(
+        None, help="Path to file with task IDs to skip (one per line)"
+    ),
     no_cache: bool = typer.Option(
         False, "--no-cache", help="Disable reusing cached Dockerfiles/test.sh"
     ),

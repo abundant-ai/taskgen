@@ -1,3 +1,8 @@
+from swegen.analyze.classifier import (
+    TrialClassifier,
+    classify_trial,
+    compute_task_verdict,
+)
 from swegen.analyze.models import (
     BaselineResult,
     BaselineValidation,
@@ -6,12 +11,7 @@ from swegen.analyze.models import (
     TaskVerdict,
     TrialClassification,
 )
-from swegen.analyze.classifier import (
-    TrialClassifier,
-    classify_trial,
-    compute_task_verdict,
-)
-from swegen.analyze.run import AnalyzeArgs, AnalysisResult, run_analyze
+from swegen.analyze.run import AnalysisResult, AnalyzeArgs, run_analyze
 
 __all__ = [
     "AnalysisResult",

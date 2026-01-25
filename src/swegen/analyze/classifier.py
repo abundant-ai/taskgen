@@ -25,7 +25,6 @@ from .models import (
     TrialClassificationModel,
 )
 
-
 # Load prompt templates
 _CLASSIFY_PROMPT_PATH = Path(__file__).parent / "classify_prompt.txt"
 _CLASSIFY_PROMPT = _CLASSIFY_PROMPT_PATH.read_text()
@@ -43,11 +42,11 @@ def classify_trial(
     timeout: int = 300,
 ) -> TrialClassification:
     """Classify a single trial outcome.
-    
+
     Convenience function for classifying an existing trial without
     instantiating TrialClassifier. This is the simplest way to use
     the classification system.
-    
+
     Example:
         >>> from swegen.analyze import classify_trial
         >>> classification = classify_trial(
@@ -56,14 +55,14 @@ def classify_trial(
         ... )
         >>> print(classification.classification)  # GOOD_SUCCESS, BAD_FAILURE, etc.
         >>> print(classification.evidence)
-    
+
     Args:
         trial_dir: Path to trial directory (contains result.json, agent/, verifier/)
         task_dir: Path to task directory (contains instruction.md, solution/, tests/)
         model: Model name for Claude Code (default: claude-sonnet-4-5)
         verbose: If True, stream Claude Code output to console
         timeout: Maximum time for classification in seconds (default: 300 = 5 min)
-        
+
     Returns:
         TrialClassification with classification, evidence, root_cause, and recommendation
     """
@@ -73,16 +72,16 @@ def classify_trial(
 
 class TrialClassifier:
     """Classifies trial outcomes using Claude Code to identify task quality issues.
-    
+
     Uses Claude Agent SDK with file access to explore trial artifacts
     and classify whether outcomes reveal task problems.
-    
+
     Authentication (in priority order):
     1. CLAUDE_CODE_OAUTH_TOKEN environment variable (recommended)
        - Generate with: claude setup-token (requires Claude Pro/Max)
     2. ANTHROPIC_API_KEY environment variable (fallback)
     """
-    
+
     def __init__(
         self,
         model: str = "claude-sonnet-4-5",
@@ -90,7 +89,7 @@ class TrialClassifier:
         timeout: int = 300,  # 5 minutes per classification
     ):
         """Initialize the classifier.
-        
+
         Args:
             model: Model name for Claude Code (default: claude-sonnet-4-5)
             verbose: If True, stream Claude Code output to console
@@ -100,16 +99,16 @@ class TrialClassifier:
         self._verbose = verbose
         self._timeout = timeout
         self._setup_authentication()
-    
+
     def _setup_authentication(self) -> None:
         """Setup authentication for Claude Code.
-        
+
         Prefers OAuth token over API key. If OAuth token is available,
         unset API key to ensure OAuth is used.
         """
         has_oauth = bool(os.getenv("CLAUDE_CODE_OAUTH_TOKEN"))
         has_api_key = bool(os.getenv("ANTHROPIC_API_KEY"))
-        
+
         if has_oauth:
             # Prefer OAuth - unset API key to ensure OAuth is used
             if "ANTHROPIC_API_KEY" in os.environ:
@@ -124,18 +123,18 @@ class TrialClassifier:
             # No authentication available - will fail when trying to classify
             # We'll handle this gracefully in classify_trial
             pass
-    
+
     async def classify_trial(
         self,
         trial_dir: Path,
         task_dir: Path,
     ) -> TrialClassification:
         """Classify a single trial outcome using Claude Code.
-        
+
         Args:
             trial_dir: Path to trial directory (contains result.json, agent/, verifier/)
             task_dir: Path to task directory (contains instruction.md, solution/, tests/)
-            
+
         Returns:
             TrialClassification with classification, evidence, and recommendations
         """
@@ -151,7 +150,7 @@ class TrialClassifier:
                 recommendation="Check Harbor logs for infrastructure issues",
                 reward=None,
             )
-        
+
         try:
             result = TrialResult.model_validate_json(result_path.read_text())
         except Exception as e:
@@ -164,12 +163,12 @@ class TrialClassifier:
                 recommendation="Check Harbor logs for what went wrong",
                 reward=None,
             )
-        
+
         # Extract reward
         reward = None
         if result.verifier_result and result.verifier_result.rewards:
             reward = result.verifier_result.rewards.get("reward")
-        
+
         # Determine result string for prompt
         if reward == 1.0:
             result_str = "pass"
@@ -177,14 +176,14 @@ class TrialClassifier:
             result_str = "fail"
         else:
             result_str = f"unknown (reward={reward})"
-        
+
         # Build prompt with paths for Claude to explore
         prompt = _CLASSIFY_PROMPT.format(
             result=result_str,
             task_dir=str(task_dir),
             trial_dir=str(trial_dir),
         )
-        
+
         # Run Claude Code with file access
         options = ClaudeAgentOptions(
             permission_mode="bypassPermissions",
@@ -199,7 +198,7 @@ class TrialClassifier:
                 "schema": TrialClassificationModel.model_json_schema(),
             },
         )
-        
+
         structured_output: Any = None
         try:
             # Check for authentication before attempting to classify
@@ -209,19 +208,26 @@ class TrialClassifier:
                     "No authentication configured. Set either CLAUDE_CODE_OAUTH_TOKEN "
                     "(preferred, run 'claude setup-token') or ANTHROPIC_API_KEY"
                 )
-            
+
             if self._verbose:
-                print(f"{Colors.YELLOW}[Classifier] Running Claude Code classification (timeout: {self._timeout}s)...{Colors.RESET}", flush=True)
-                print(f"{Colors.YELLOW}[Classifier] Trial: {trial_dir.name}{Colors.RESET}", flush=True)
-                print(f"{Colors.YELLOW}[Classifier] Task: {task_dir.name}{Colors.RESET}", flush=True)
+                print(
+                    f"{Colors.YELLOW}[Classifier] Running Claude Code classification (timeout: {self._timeout}s)...{Colors.RESET}",
+                    flush=True,
+                )
+                print(
+                    f"{Colors.YELLOW}[Classifier] Trial: {trial_dir.name}{Colors.RESET}", flush=True
+                )
+                print(
+                    f"{Colors.YELLOW}[Classifier] Task: {task_dir.name}{Colors.RESET}", flush=True
+                )
                 print("-" * 60, flush=True)
-            
+
             # Run with timeout
             try:
                 async with asyncio.timeout(self._timeout):
                     async with ClaudeSDKClient(options=options) as client:
                         await client.query(prompt)
-                        
+
                         async for message in client.receive_response():
                             if self._verbose:
                                 print_sdk_message(message)
@@ -229,7 +235,10 @@ class TrialClassifier:
                                 structured_output = message.structured_output
             except TimeoutError:
                 if self._verbose:
-                    print(f"{Colors.RED}[Classifier] Timed out after {self._timeout}s{Colors.RESET}", flush=True)
+                    print(
+                        f"{Colors.RED}[Classifier] Timed out after {self._timeout}s{Colors.RESET}",
+                        flush=True,
+                    )
                 return TrialClassification(
                     trial_name=trial_dir.name,
                     classification=Classification.HARNESS_ERROR,
@@ -239,16 +248,23 @@ class TrialClassifier:
                     recommendation="Review trial manually or increase timeout",
                     reward=reward,
                 )
-            
+
             if structured_output is None:
-                raise RuntimeError("Claude Agent SDK did not return structured_output for this request")
-            
+                raise RuntimeError(
+                    "Claude Agent SDK did not return structured_output for this request"
+                )
+
             if self._verbose:
                 print("-" * 60, flush=True)
-                print(f"{Colors.GREEN}[Classifier] Classification complete for {trial_dir.name}{Colors.RESET}", flush=True)
-            
-            return self._parse_trial_classification_structured(structured_output, trial_dir.name, reward)
-            
+                print(
+                    f"{Colors.GREEN}[Classifier] Classification complete for {trial_dir.name}{Colors.RESET}",
+                    flush=True,
+                )
+
+            return self._parse_trial_classification_structured(
+                structured_output, trial_dir.name, reward
+            )
+
         except Exception as e:
             # Fallback classification based on reward
             if reward == 1.0:
@@ -260,7 +276,7 @@ class TrialClassifier:
             else:
                 classification = Classification.HARNESS_ERROR
                 subtype = "Classification Failed"
-            
+
             return TrialClassification(
                 trial_name=trial_dir.name,
                 classification=classification,
@@ -270,7 +286,7 @@ class TrialClassifier:
                 recommendation="Review trial manually",
                 reward=reward,
             )
-    
+
     def _parse_trial_classification_structured(
         self,
         structured_output: Any,
@@ -320,7 +336,7 @@ class TrialClassifier:
                 recommendation="Review trial manually",
                 reward=reward,
             )
-    
+
     def classify_trial_sync(
         self,
         trial_dir: Path,
@@ -328,54 +344,56 @@ class TrialClassifier:
     ) -> TrialClassification:
         """Synchronous wrapper for classify_trial."""
         return asyncio.run(self.classify_trial(trial_dir, task_dir))
-    
+
     async def classify_trials(
         self,
         trial_dirs: list[Path],
         task_dir: Path,
-        console: "Console | None" = None,
+        console: Console | None = None,
     ) -> list[TrialClassification]:
         """Classify multiple trials.
-        
+
         Note: Runs sequentially to avoid overwhelming Claude Code.
-        
+
         Args:
             trial_dirs: List of trial directories to classify
             task_dir: Path to task directory
             console: Optional console for progress output
-            
+
         Returns:
             List of TrialClassification results
         """
         if console:
             console.print(f"  Classifying {len(trial_dirs)} trial(s) with Claude Code...")
-        
+
         classifications = []
         for i, trial_dir in enumerate(trial_dirs):
             if console:
                 console.print(f"    [{i+1}/{len(trial_dirs)}] {trial_dir.name}...")
-            
+
             try:
                 classification = await self.classify_trial(trial_dir, task_dir)
                 classifications.append(classification)
             except Exception as e:
-                classifications.append(TrialClassification(
-                    trial_name=trial_dir.name,
-                    classification=Classification.HARNESS_ERROR,
-                    subtype="Classification Error",
-                    evidence=str(e),
-                    root_cause="Exception during classification",
-                    recommendation="Review trial manually",
-                    reward=None,
-                ))
-        
+                classifications.append(
+                    TrialClassification(
+                        trial_name=trial_dir.name,
+                        classification=Classification.HARNESS_ERROR,
+                        subtype="Classification Error",
+                        evidence=str(e),
+                        root_cause="Exception during classification",
+                        recommendation="Review trial manually",
+                        reward=None,
+                    )
+                )
+
         return classifications
-    
+
     def classify_trials_sync(
         self,
         trial_dirs: list[Path],
         task_dir: Path,
-        console: "Console | None" = None,
+        console: Console | None = None,
     ) -> list[TrialClassification]:
         """Synchronous wrapper for classify_trials."""
         return asyncio.run(self.classify_trials(trial_dirs, task_dir, console))
@@ -386,12 +404,12 @@ async def compute_task_verdict_with_llm(
     baseline: BaselineValidation | None = None,
     quality_check_passed: bool = True,
     model: str = "claude-sonnet-4-5",
-    console: "Console | None" = None,
+    console: Console | None = None,
     verbose: bool = False,
     timeout: int = 180,  # 3 minutes for verdict synthesis
 ) -> TaskVerdict:
     """Compute task verdict using LLM to synthesize trial analyses.
-    
+
     Args:
         classifications: List of individual trial classifications
         baseline: Optional baseline validation results
@@ -400,7 +418,7 @@ async def compute_task_verdict_with_llm(
         console: Optional console for progress output
         verbose: If True, stream Claude Code output to console
         timeout: Maximum time for verdict synthesis in seconds (default: 180 = 3 min)
-        
+
     Returns:
         TaskVerdict with LLM-synthesized analysis
     """
@@ -411,32 +429,36 @@ async def compute_task_verdict_with_llm(
             primary_issue="No trials to analyze",
             recommendations=["Run agent trials first"],
         )
-    
+
     # Format baseline summary
     if baseline:
         if baseline.is_valid:
             baseline_summary = "✓ Passed (nop failed as expected, oracle passed as expected)"
         else:
-            baseline_summary = "✗ FAILED:\n" + "\n".join(f"  - {issue}" for issue in baseline.issues)
+            baseline_summary = "✗ FAILED:\n" + "\n".join(
+                f"  - {issue}" for issue in baseline.issues
+            )
     else:
         baseline_summary = "Not run"
-    
+
     # Format quality check summary
     quality_check_summary = "✓ Passed" if quality_check_passed else "✗ Failed"
-    
+
     # Format trial classifications
     trial_lines = []
     for i, c in enumerate(classifications, 1):
-        trial_lines.append(f"""Trial {i}: {c.trial_name}
+        trial_lines.append(
+            f"""Trial {i}: {c.trial_name}
   Classification: {c.classification.value}
   Subtype: {c.subtype}
   Reward: {c.reward}
   Evidence: {c.evidence}
   Root Cause: {c.root_cause}
   Recommendation: {c.recommendation}
-""")
+"""
+        )
     trial_classifications = "\n".join(trial_lines)
-    
+
     # Build prompt
     prompt = _VERDICT_PROMPT.format(
         num_trials=len(classifications),
@@ -444,10 +466,10 @@ async def compute_task_verdict_with_llm(
         quality_check_summary=quality_check_summary,
         trial_classifications=trial_classifications,
     )
-    
+
     if console:
         console.print("  [dim]Synthesizing verdict with LLM...[/dim]")
-    
+
     # Run Claude Code with simple query (no file access needed)
     options = ClaudeAgentOptions(
         permission_mode="bypassPermissions",
@@ -458,7 +480,7 @@ async def compute_task_verdict_with_llm(
             "schema": TaskVerdictModel.model_json_schema(),
         },
     )
-    
+
     # Check for authentication
     has_auth = bool(os.getenv("CLAUDE_CODE_OAUTH_TOKEN") or os.getenv("ANTHROPIC_API_KEY"))
     if not has_auth:
@@ -467,23 +489,26 @@ async def compute_task_verdict_with_llm(
             "Set either CLAUDE_CODE_OAUTH_TOKEN (preferred, run 'claude setup-token') "
             "or ANTHROPIC_API_KEY"
         )
-    
+
     if verbose:
-        print(f"\n{Colors.YELLOW}[Verdict] Synthesizing task verdict with LLM (timeout: {timeout}s)...{Colors.RESET}", flush=True)
+        print(
+            f"\n{Colors.YELLOW}[Verdict] Synthesizing task verdict with LLM (timeout: {timeout}s)...{Colors.RESET}",
+            flush=True,
+        )
         print("-" * 60, flush=True)
-    
+
     structured_output: Any = None
     try:
         async with asyncio.timeout(timeout):
             async with ClaudeSDKClient(options=options) as client:
                 await client.query(prompt)
-                
+
                 async for message in client.receive_response():
                     if verbose:
                         print_sdk_message(message)
                     if isinstance(message, ResultMessage):
                         structured_output = message.structured_output
-        
+
         if verbose:
             print("-" * 60, flush=True)
             print(f"{Colors.GREEN}[Verdict] Verdict synthesis complete{Colors.RESET}\n", flush=True)
@@ -493,32 +518,55 @@ async def compute_task_verdict_with_llm(
             print(f"{Colors.RED}[Verdict] Timed out after {timeout}s{Colors.RESET}\n", flush=True)
         # Return a fallback verdict based on simple heuristics
         if console:
-            console.print(f"  [yellow]⚠ Verdict synthesis timed out, using fallback heuristics[/yellow]")
-        
+            console.print(
+                "  [yellow]⚠ Verdict synthesis timed out, using fallback heuristics[/yellow]"
+            )
+
         task_problem_count = sum(1 for c in classifications if c.is_task_problem)
         return TaskVerdict(
             is_good=task_problem_count == 0,
             confidence="low",
             primary_issue=f"Verdict synthesis timed out ({task_problem_count} task problems detected)",
-            recommendations=["Retry analysis with increased timeout", "Review trial classifications manually"],
+            recommendations=[
+                "Retry analysis with increased timeout",
+                "Review trial classifications manually",
+            ],
             task_problem_count=task_problem_count,
-            agent_problem_count=sum(1 for c in classifications if c.classification == Classification.GOOD_FAILURE),
-            success_count=sum(1 for c in classifications if c.classification in (Classification.GOOD_SUCCESS, Classification.BAD_SUCCESS)),
-            harness_error_count=sum(1 for c in classifications if c.classification == Classification.HARNESS_ERROR),
+            agent_problem_count=sum(
+                1 for c in classifications if c.classification == Classification.GOOD_FAILURE
+            ),
+            success_count=sum(
+                1
+                for c in classifications
+                if c.classification in (Classification.GOOD_SUCCESS, Classification.BAD_SUCCESS)
+            ),
+            harness_error_count=sum(
+                1 for c in classifications if c.classification == Classification.HARNESS_ERROR
+            ),
             classifications=classifications,
             baseline=baseline,
         )
-    
+
     if structured_output is None:
-        raise RuntimeError("Claude Agent SDK did not return structured_output for verdict synthesis")
+        raise RuntimeError(
+            "Claude Agent SDK did not return structured_output for verdict synthesis"
+        )
     verdict_model = _parse_verdict_structured(structured_output)
-    
+
     # Build TaskVerdict from LLM response
     task_problem_count = sum(1 for c in classifications if c.is_task_problem)
-    agent_problem_count = sum(1 for c in classifications if c.classification == Classification.GOOD_FAILURE)
-    success_count = sum(1 for c in classifications if c.classification in (Classification.GOOD_SUCCESS, Classification.BAD_SUCCESS))
-    harness_error_count = sum(1 for c in classifications if c.classification == Classification.HARNESS_ERROR)
-    
+    agent_problem_count = sum(
+        1 for c in classifications if c.classification == Classification.GOOD_FAILURE
+    )
+    success_count = sum(
+        1
+        for c in classifications
+        if c.classification in (Classification.GOOD_SUCCESS, Classification.BAD_SUCCESS)
+    )
+    harness_error_count = sum(
+        1 for c in classifications if c.classification == Classification.HARNESS_ERROR
+    )
+
     return TaskVerdict(
         is_good=verdict_model.is_good,
         confidence=verdict_model.confidence,
@@ -531,6 +579,7 @@ async def compute_task_verdict_with_llm(
         classifications=classifications,
         baseline=baseline,
     )
+
 
 def _parse_verdict_structured(structured_output: Any) -> TaskVerdictModel:
     """Parse and validate verdict from SDK structured output (preferred path)."""
@@ -550,15 +599,15 @@ def compute_task_verdict(
     baseline: BaselineValidation | None = None,
     quality_check_passed: bool = True,
     model: str = "claude-sonnet-4-5",
-    console: "Console | None" = None,
+    console: Console | None = None,
     verbose: bool = False,
     timeout: int = 180,
 ) -> TaskVerdict:
     """Compute overall task verdict from trial classifications using LLM synthesis.
-    
+
     Uses Claude to intelligently synthesize individual trial analyses into a final verdict.
     Performs pattern recognition, root cause analysis, and generates actionable recommendations.
-    
+
     Args:
         classifications: List of trial classifications
         baseline: Optional baseline validation results
@@ -567,10 +616,10 @@ def compute_task_verdict(
         console: Optional console for progress output
         verbose: If True, stream Claude Code output to console
         timeout: Maximum time for verdict synthesis in seconds (default: 180 = 3 min)
-        
+
     Returns:
         TaskVerdict with is_good, confidence, and recommendations
-        
+
     Raises:
         RuntimeError: If no Claude authentication is configured
     """
@@ -581,18 +630,19 @@ def compute_task_verdict(
         )
     )
 
+
 def classify_baseline_result(
     agent: str,
     reward: float | None,
     error: str | None = None,
 ) -> BaselineResult:
     """Create a BaselineResult from agent run outcome.
-    
+
     Args:
         agent: "nop" or "oracle"
         reward: Reward value (1.0 = pass, 0.0 = fail)
         error: Optional error message if agent failed to run
-        
+
     Returns:
         BaselineResult with pass/fail status
     """

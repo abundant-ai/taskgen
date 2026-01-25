@@ -75,7 +75,7 @@ def _cleanup_task(task_id: str, tasks_root: Path, console: Console) -> None:
 
 def _classify_failure(stderr: str) -> tuple[str, str]:
     """Classify failure reason and return (category, message).
-    
+
     Categories:
     - trivial: Trivial PR (too small/simple)
     - no_issue: No linked issue
@@ -109,7 +109,7 @@ def _classify_failure(stderr: str) -> tuple[str, str]:
         return "git_error", "Git commit not found (may be force-pushed or deleted)"
     if "git checkout" in lowered:
         return "git_error", "Git checkout failed (repo cache may be corrupted)"
-    
+
     message = (stderr or "Unknown error").replace("\n", " ")
     return "other", message
 
@@ -163,7 +163,7 @@ def _run_reversal_for_pr(
         )
     except Exception as e:
         # Catch any unexpected exception and return proper error
-        error_msg = f"Unexpected error: {type(e).__name__}: {str(e)}"
+        error_msg = f"Unexpected error: {type(e).__name__}: {e!s}"
         console.print(f"[red]✗ PR #{pr.number}: {error_msg}[/red]")
         console.print(f"[dim]{traceback.format_exc()}[/dim]")
         _cleanup_task(task_id, tasks_root, console)
@@ -246,12 +246,12 @@ def _run_reversal_for_pr_impl(
         success = False
     except FileExistsError as e:
         # Task already exists - skip it
-        error_msg = f"Task already exists: {str(e)}"
+        error_msg = f"Task already exists: {e!s}"
         error_category = "already_exists"
         success = False
     except Exception as e:
         # Other errors
-        error_msg = f"{type(e).__name__}: {str(e)}"
+        error_msg = f"{type(e).__name__}: {e!s}"
         if config.verbose:
             console.print(f"[red]{traceback.format_exc()}[/red]")
         # Classify the error

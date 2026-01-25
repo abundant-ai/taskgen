@@ -50,7 +50,7 @@ class GitHubPRFetcher:
 
     def fetch_pr_metadata(self, allow_unmerged: bool = False) -> dict:
         """Fetch PR metadata from GitHub API.
-        
+
         Args:
             allow_unmerged: If True, allow unmerged PRs (for testing/preview). Default False.
         """

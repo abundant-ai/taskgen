@@ -12,8 +12,6 @@ from .harbor_runner import parse_harbor_outcome, run_harbor_agent
 class ValidationError(Exception):
     """Raised when Harbor validation fails (NOP or Oracle)."""
 
-    pass
-
 
 def validate_task_structure(task_dir: Path) -> bool:
     """Validate task structure using Harbor's Task model.

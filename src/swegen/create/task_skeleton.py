@@ -37,7 +37,7 @@ def generate_dockerfile(params: SkeletonParams) -> str:
     - Dependency installation
     - Build steps (if needed)
     - Post-patch rebuild (if needed)
-    
+
     Git clone strategy:
     - Simple + robust: clone, then fetch the exact commit SHA.
     - NOTE: `head_sha` currently comes from the PR's HEAD branch tip (GitHub API).

@@ -24,7 +24,7 @@ class StreamState:
         last_created_at: ISO timestamp of last processed PR's creation time
         last_updated: ISO timestamp of last state update
         skip_list_prs: Set of PR numbers to skip (from external skip list)
-        
+
         # Detailed categorization
         successful_prs: dict[int, str] = None  # PR# -> task_id
         trivial_prs: set[int] = None  # Trivial PRs (too small/simple)
@@ -49,7 +49,7 @@ class StreamState:
     last_created_at: str | None = None
     last_updated: str | None = None
     skip_list_prs: set[int] = None
-    
+
     # Detailed categorization
     successful_prs: dict[int, str] = None  # PR# -> task_id
     trivial_prs: set[int] = None
@@ -92,8 +92,13 @@ class StreamState:
             self.other_failed_prs = {}
 
     def mark_processed(
-        self, pr_number: int, created_at: str, success: bool, task_id: str = None, 
-        category: str = None, message: str = None
+        self,
+        pr_number: int,
+        created_at: str,
+        success: bool,
+        task_id: str | None = None,
+        category: str | None = None,
+        message: str | None = None,
     ) -> None:
         """Mark a PR as processed and update counters.
 
@@ -107,7 +112,7 @@ class StreamState:
         """
         self.processed_prs.add(pr_number)
         self.total_processed += 1
-        
+
         if success:
             self.successful += 1
             if task_id:
@@ -136,7 +141,7 @@ class StreamState:
             else:
                 # Other/unknown error
                 self.other_failed_prs[pr_number] = message or "Unknown error"
-        
+
         self.last_pr_number = pr_number
         self.last_created_at = created_at
         self.last_updated = datetime.now(UTC).isoformat()

@@ -835,7 +835,7 @@ async def _run_claude_code_session_async(
     # Create hook for logging Harbor validation attempts
     harbor_runs: list[str] = []
 
-    async def log_harbor_runs(input_data: dict, tool_use_id: str, context: dict) -> dict:
+    async def log_harbor_runs(input_data: dict, _tool_use_id: str, _context: dict) -> dict:
         """Log Harbor validation attempts for debugging."""
         command = input_data.get("tool_input", {}).get("command", "")
         if "harbor run" in command:
@@ -861,21 +861,21 @@ async def _run_claude_code_session_async(
             permission_mode="bypassPermissions",  # Auto-approve actions
             cwd=os.getcwd(),  # Run from project root
             model="sonnet",  # Use Sonnet model
-            hooks={
-                "PreToolUse": [HookMatcher(matcher="Bash", hooks=[log_harbor_runs])]
-            } if verbose else {},
+            hooks={"PreToolUse": [HookMatcher(matcher="Bash", hooks=[log_harbor_runs])]}
+            if verbose
+            else {},
         )
 
         # Run with timeout
         try:
             async with asyncio.timeout(timeout):
                 response_parts = []
-                
+
                 if verbose:
                     # Stream messages with real-time display
                     async for message in query(prompt=prompt_text, options=options):
                         print_sdk_message(message)
-                        
+
                         # Collect text for final result
                         if isinstance(message, AssistantMessage):
                             for block in message.content:
@@ -893,14 +893,14 @@ async def _run_claude_code_session_async(
             logger.warning("Claude Code session timed out after %ds", timeout)
             if verbose:
                 print(f"\n[SDK] Timed out after {timeout}s", flush=True)
-            return _check_validation_state(jobs_dir, task_id, logger, timed_out=True)
+            return _check_validation_state(jobs_dir, task_id, timed_out=True)
 
         if verbose:
             print("-" * 60, flush=True)
             print("[SDK] Session complete", flush=True)
 
         # Check final state from job files
-        return _check_validation_state(jobs_dir, task_id, logger)
+        return _check_validation_state(jobs_dir, task_id)
 
     except Exception as e:
         logger.error("Claude Code session failed: %s", e)
@@ -915,7 +915,6 @@ async def _run_claude_code_session_async(
 def _check_validation_state(
     jobs_dir: Path,
     task_id: str,
-    logger: logging.Logger,
     timed_out: bool = False,
 ) -> ClaudeCodeResult:
     """Check validation state from harbor job results."""

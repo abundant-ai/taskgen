@@ -48,11 +48,7 @@ def print_sdk_message(message: object) -> None:
                     # For bash commands, show up to 2000 chars; for other inputs, 1000 chars
                     max_len = 2000 if tool_name.lower() == "bash" else 1000
                     summary = {
-                        k: (
-                            v[:max_len] + "..."
-                            if isinstance(v, str) and len(v) > max_len
-                            else v
-                        )
+                        k: (v[:max_len] + "..." if isinstance(v, str) and len(v) > max_len else v)
                         for k, v in tool_input.items()
                     }
                 else:
@@ -92,4 +88,3 @@ def print_sdk_message(message: object) -> None:
         msg_text = getattr(message, "text", str(message))
         if msg_text:
             print(f"{Colors.YELLOW}[System]{Colors.RESET} {msg_text}", flush=True)
-
