@@ -27,9 +27,9 @@ class TaskReferenceStore:
         Initialize task reference store.
 
         Args:
-            reference_file: Path to JSON file storing references (default: .state/task_references.json)
+            reference_file: Path to JSON file storing references (default: .swegen/task_references.json)
         """
-        self.reference_file = reference_file or Path(".state/task_references.json")
+        self.reference_file = reference_file or Path(".swegen/task_references.json")
         self.reference_file.parent.mkdir(parents=True, exist_ok=True)
 
     def _load_references(self) -> dict[str, TaskReference]:

@@ -40,7 +40,7 @@ class CreateConfig:
     cc_timeout: int = 3200
     validate: bool = True
     force: bool = False
-    state_dir: Path = field(default_factory=lambda: Path(".state"))
+    state_dir: Path = field(default_factory=lambda: Path(".swegen"))
     use_cache: bool = True
     require_minimum_difficulty: bool = True
     min_source_files: int = 3
@@ -86,13 +86,13 @@ class FarmConfig:
         max_source_files: Maximum number of source files allowed to avoid large refactors (default: 10)
         environment: Environment type for Harbor runs (docker, daytona, e2b, modal, runloop, gke)
         verbose: Enable verbose output
-        issue_only: Only process PRs that have linked issues (higher quality instructions)
+        require_issue: Require PR to have a linked issue (higher quality instructions)
         validate: Run Harbor validation after CC (useful when CC times out but task may be valid)
     """
 
     repo: str
     output: Path = field(default_factory=lambda: Path("tasks"))
-    state_dir: Path = field(default_factory=lambda: Path(".state"))
+    state_dir: Path = field(default_factory=lambda: Path(".swegen"))
     force: bool = True
     timeout: int = 300
     cc_timeout: int = 900
@@ -109,7 +109,7 @@ class FarmConfig:
     max_source_files: int = 10
     environment: EnvironmentType = EnvironmentType.DOCKER
     verbose: bool = False
-    issue_only: bool = False
+    require_issue: bool = True
     validate: bool = True
 
 
@@ -133,7 +133,7 @@ class ValidateConfig:
     path: Path
     task: str | None = None
     agent: Literal["both", "nop", "oracle"] = "both"
-    jobs_dir: Path = field(default_factory=lambda: Path(".state/harbor-jobs"))
+    jobs_dir: Path = field(default_factory=lambda: Path(".swegen/harbor-jobs"))
     timeout_multiplier: float | None = None
     environment: EnvironmentType = EnvironmentType.DOCKER
     verbose: bool = False

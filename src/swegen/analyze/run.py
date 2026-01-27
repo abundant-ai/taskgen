@@ -24,7 +24,6 @@ from .classifier import (
     TrialClassifier,
     classify_baseline_result,
     compute_task_verdict,
-    write_trial_analysis_files,
 )
 from swegen.tools.harbor_runner import (
     harbor_cmd_base,
@@ -118,7 +117,7 @@ class AnalyzeArgs:
     model: str = "anthropic/claude-sonnet-4-5"
     n_trials: int = 3
     n_concurrent: int = 1  # Number of concurrent trials (matches Harbor's -n flag)
-    jobs_dir: Path = Path(".state/analyze-jobs")
+    jobs_dir: Path = Path(".swegen/analyze-jobs")
     skip_quality_check: bool = False
     skip_baseline: bool = False  # Skip baseline validation (nop/oracle)
     skip_classify: bool = False  # Skip Claude Code classification
@@ -128,7 +127,6 @@ class AnalyzeArgs:
     timeout_multiplier: float = 1.0
     classification_timeout: int = 300  # Timeout per classification in seconds (5 min default)
     verdict_timeout: int = 180  # Timeout for verdict synthesis in seconds (3 min default)
-    save_to_dir: bool = False  # Write trajectory-analysis.{md,json} to each trial dir
 
 
 def run_analyze(args: AnalyzeArgs) -> AnalysisResult:
@@ -231,25 +229,6 @@ def _run_analysis(
                 timeout=args.classification_timeout,
             )
             classifications = classifier.classify_trials_sync(trial_dirs, task_path, console)
-            
-            # Write per-trial outputs if requested
-            if args.save_to_dir:                
-                for classification in classifications:
-                    # Find the matching trial directory
-                    trial_dir = next(
-                        (t.trial_dir for t in trial_outcomes if t.trial_name == classification.trial_name),
-                        None
-                    )
-                    if trial_dir and trial_dir.exists():
-                        write_trial_analysis_files(
-                            trial_dir=trial_dir,
-                            classification=classification,
-                            task_id=task_id,
-                            agent=args.agent,
-                            model=args.model,
-                        )
-                        if args.verbose:
-                            console.print(f"  [dim]Wrote analysis to {trial_dir}/trajectory-analysis.*[/dim]")
             
             # Show classification summary
             task_problems = sum(1 for c in classifications if c.is_task_problem)

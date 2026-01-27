@@ -5,7 +5,6 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 import typer
-import json
 from dotenv import load_dotenv
 from harbor.models.environment_type import EnvironmentType
 from rich.console import Console
@@ -14,7 +13,7 @@ from swegen.config import CreateConfig, FarmConfig
 from swegen.create import MissingIssueError, TrivialPRError
 from swegen.create.create import run_reversal
 from swegen.farm import StreamFarmer
-from swegen.analyze import AnalyzeArgs, run_analyze, TrialClassifier, write_trial_analysis_files
+from swegen.analyze import AnalyzeArgs, run_analyze
 from swegen.tools.validate import ValidateArgs, run_validate
 from swegen.tools.validate_utils import ValidationError
 
@@ -62,7 +61,7 @@ def create_cmd(
     ),
     force: bool = typer.Option(False, help="Bypass local dedupe and regenerate"),
     state_dir: Path = typer.Option(
-        Path(".state"), help="Local dedupe state dir", show_default=True
+        Path(".swegen"), help="Local dedupe state dir", show_default=True
     ),
     no_cache: bool = typer.Option(
         False, "--no-cache", help="Disable reusing cached Dockerfiles/test.sh from previous tasks"
@@ -136,7 +135,7 @@ def validate(
     | None = typer.Option(None, "--task", "-t", help="Task ID when --path points to dataset root"),
     agent: str = typer.Option("both", help="Agent to run: both|nop|oracle", show_default=True),
     jobs_dir: Path = typer.Option(
-        Path(".state/harbor-jobs"),
+        Path(".swegen/harbor-jobs"),
         help="Directory to store Harbor job artifacts",
         show_default=True,
     ),
@@ -209,7 +208,7 @@ def analyze(
         3, "-n", "--n-concurrent", help="Number of concurrent trials (1=sequential, 3-5 recommended)", show_default=True
     ),
     jobs_dir: Path = typer.Option(
-        Path(".state/analyze-jobs"),
+        Path(".swegen/analyze-jobs"),
         "--jobs-dir",
         help="Directory to store job artifacts",
         show_default=True,
@@ -251,11 +250,6 @@ def analyze(
         "--verdict-timeout",
         help="Timeout for verdict synthesis in seconds",
         show_default=True,
-    ),
-    save_to_dir: bool = typer.Option(
-        False,
-        "--save-to-dir",
-        help="Write trajectory-analysis.{md,json} to each trial directory",
     ),
 ) -> None:
     """
@@ -304,7 +298,6 @@ def analyze(
             verbose=verbose,
             classification_timeout=classification_timeout,
             verdict_timeout=verdict_timeout,
-            save_to_dir=save_to_dir,
         )
     )
 
@@ -320,7 +313,7 @@ def farm(
         Path("tasks"), help="Output directory for generated tasks", show_default=True
     ),
     state_dir: Path = typer.Option(
-        Path(".state"), help="State directory for cache/logs", show_default=True
+        Path(".swegen"), help="State directory for cache/logs", show_default=True
     ),
     force: bool = typer.Option(True, help="Regenerate even if task already exists"),
     timeout: int = typer.Option(300, help="Timeout per PR in seconds", show_default=True),
@@ -367,10 +360,9 @@ def farm(
         show_default=True,
     ),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
-    issue_only: bool = typer.Option(
+    require_issue: bool = typer.Option(
         True,
-        "--issue-only",
-        help="Only process PRs with linked issues (higher quality instructions)",
+        help="Require PR to have a linked issue (higher quality); --no-require-issue to process all PRs",
     ),
     validate: bool = typer.Option(
         True, help="Run Harbor validation after CC; --no-validate to skip"
@@ -401,7 +393,7 @@ def farm(
         max_source_files=max_source_files,
         environment=EnvironmentType(environment),
         verbose=verbose,
-        issue_only=issue_only,
+        require_issue=require_issue,
         validate=validate,
     )
 

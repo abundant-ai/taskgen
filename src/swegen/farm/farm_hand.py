@@ -216,7 +216,7 @@ def _run_reversal_for_pr_impl(
         require_minimum_difficulty=config.require_minimum_difficulty,
         min_source_files=config.min_source_files,
         max_source_files=config.max_source_files,
-        require_issue=config.issue_only,
+        require_issue=config.require_issue,
         environment=config.environment,
     )
 

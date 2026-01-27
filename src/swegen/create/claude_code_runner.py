@@ -787,7 +787,7 @@ async def _run_claude_code_session_async(
     repo_path = Path(repo_path).resolve()
 
     # Jobs directory for harbor output
-    jobs_dir = dataset_path.parent / ".state" / "harbor-jobs"
+    jobs_dir = dataset_path.parent / ".swegen" / "harbor-jobs"
     jobs_dir.mkdir(parents=True, exist_ok=True)
     jobs_dir = jobs_dir.resolve()
 

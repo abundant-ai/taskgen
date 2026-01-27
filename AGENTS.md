@@ -67,7 +67,7 @@ swegen farm fastapi/fastapi --resume-from 2024-01-15
 
 Key options:
 - `--dry-run`: Preview without generation
-- `--issue-only`: Only process PRs with linked issues (default: True)
+- `--no-require-issue`: Allow PRs without linked issues (default requires issue)
 - `--reset`: Start from beginning
 - `--timeout`: Timeout per PR in seconds (default: 300)
 - `--cc-timeout`: Claude Code session timeout (default: 3200)
@@ -88,26 +88,28 @@ Run multiple agent trials and analyze task quality.
 
 ```bash
 swegen analyze tasks/<task_id> -k 3 -a claude-code
-swegen analyze tasks/<task_id> -k 5 --save-to-dir
+swegen analyze tasks/<task_id> -k 5 -n 3  # run 5 trials, 3 concurrent
 ```
 
 Key options:
 - `-k, --n-trials`: Number of trials to run (default: 3)
 - `-n, --n-concurrent`: Number of concurrent trials (default: 3)
 - `--analysis-model`: Model for Claude Code classification (default: claude-sonnet-4-5)
-- `--save-to-dir`: Write trajectory-analysis.{md,json} to each trial directory
 - `--skip-baseline`: Skip baseline validation (nop/oracle)
 - `--skip-classify`: Skip AI-powered trial classification
 
 **Note**: For programmatic access to classification and verdict synthesis (e.g., CI integration), use the library directly:
 
 ```python
-from swegen.analyze import TrialClassifier, compute_task_verdict, write_trial_analysis_files
+from swegen.analyze import classify_trial, compute_task_verdict
 
-# Classify a single trial
-classifier = TrialClassifier(model="claude-sonnet-4-5")
-classification = await classifier.classify_trial(trial_dir, task_dir)
-write_trial_analysis_files(trial_dir, classification, task_id, agent, model)
+# Classify a single trial (simplest API)
+classification = classify_trial("path/to/trial", "path/to/task")
+print(classification.classification)  # GOOD_SUCCESS, BAD_FAILURE, etc.
+
+# Compute verdict from multiple classifications
+verdict = compute_task_verdict([classification1, classification2, ...])
+print(verdict.is_good, verdict.primary_issue)
 ```
 
 ---
@@ -249,7 +251,7 @@ The farm system enables continuous processing of a repository's PR history:
 
 - **StreamState** (`state.py`) - Persistence for resumability
   - Tracks processed PRs, success/failure counts
-  - Saves to `.state/stream_farm/<repo>.json`
+  - Saves to `.swegen/stream_farm/<repo>.json`
 
 - **farm_hand** (`farm_hand.py`) - Per-PR processing
   - Calls `run_reversal()` for each PR
@@ -261,7 +263,7 @@ PRs are filtered by:
 - Must be merged to primary branch
 - Must include test changes
 - Must modify minimum number of files (configurable with `--min-source-files` and `--max-source-files`)
-- Must have linked issue by default (disable with `--no-issue-only` flag, since `--issue-only` defaults to True)
+- Must have linked issue by default (disable with `--no-require-issue`)
 - Must pass LLM substantiality check (disable with `--no-require-minimum-difficulty`)
 
 ---
@@ -291,11 +293,6 @@ Comprehensive task quality analysis module:
 - Provides evidence, root cause analysis, and recommendations for task improvements
 - Aggregates results across all trials to compute overall task verdict
 
-**CI Integration:**
-- `--save-to-dir` flag writes per-trial analysis files (trajectory-analysis.{md,json})
-- Compatible with task-workflows trajectory analysis system
-- Enables batch verdict synthesis across multiple trials
-
 Components:
 - **run.py** - Main analysis orchestrator
 - **classifier.py** - AI-powered failure classification using Claude Agent SDK
@@ -324,20 +321,20 @@ Key defaults:
 - Claude Code always used for task completion
 - Minimum 3 source files required for task generation (configurable via `--min-source-files`)
 - Maximum 10 source files to avoid large refactors (configurable via `--max-source-files`)
-- Linked issue required for high-quality instructions (disable with `--no-require-issue` for create, `--no-issue-only` for farm)
+- Linked issue required for high-quality instructions (disable with `--no-require-issue`)
 - Task references enabled by default for faster generation
 - Harbor validation enabled by default (disable with `--no-validate`)
-- Farm command: `--issue-only` defaults to True (only process PRs with linked issues)
+- Farm command: `--require-issue` defaults to True (only process PRs with linked issues)
 - Farm command: `--cc-timeout` defaults to 3200 seconds (~53 minutes)
 
 ---
 
 ## State Management
 
-State is persisted in `.state/`:
+State is persisted in `.swegen/`:
 
 ```
-.state/
+.swegen/
 ├── create.jsonl      # Processed PRs (deduplication)
 ├── stream_farm/        # Farm state per repo
 │   └── <repo>.json
