@@ -128,6 +128,31 @@ If NOT substantial, set instruction to null and provide a brief reason.
 """
 
 
+def _sanitize_for_openai(text: str | None) -> str:
+    """Sanitize text for OpenAI API calls by replacing problematic Unicode characters.
+    
+    HTTP headers must be ASCII-only. This function replaces Unicode LINE SEPARATOR
+    (U+2028) and PARAGRAPH SEPARATOR (U+2029) which can leak into headers and cause
+    UnicodeEncodeError when httpx tries to encode them as ASCII.
+    
+    Args:
+        text: Input text that may contain problematic Unicode characters (can be None)
+        
+    Returns:
+        Sanitized text with U+2028 replaced by '\n' and U+2029 replaced by '\n\n'
+        Returns empty string if input is None or not a string
+    """
+    if not isinstance(text, str):
+        return ""
+    
+    # Replace LINE SEPARATOR (U+2028) with newline
+    text = text.replace('\u2028', '\n')
+    # Replace PARAGRAPH SEPARATOR (U+2029) with double newline
+    text = text.replace('\u2029', '\n\n')
+    
+    return text
+
+
 def _format_user_prompt(
     pr_title: str,
     pr_body: str,
@@ -293,18 +318,37 @@ def evaluate_and_generate_task(
 
     # Prepare prompt data
     # NOTE: We intentionally do NOT pass diff/commits to avoid leaking the solution
-    pr_title = metadata.get("title", "")
-    pr_body = metadata.get("body", "")
+    # Sanitize all inputs to remove problematic Unicode characters before processing
+    pr_title = _sanitize_for_openai(metadata.get("title", ""))
+    pr_body = _sanitize_for_openai(metadata.get("body", ""))
     changed_files = [f.get("filename", "") for f in files]
+    
+    # Sanitize linked issues if present
+    sanitized_linked_issues = None
+    if linked_issues:
+        sanitized_linked_issues = []
+        for issue in linked_issues:
+            sanitized_issue = issue.copy()
+            sanitized_issue["title"] = _sanitize_for_openai(issue.get("title", ""))
+            sanitized_issue["body"] = _sanitize_for_openai(issue.get("body", ""))
+            sanitized_linked_issues.append(sanitized_issue)
+    
+    # Sanitize test contents if present
+    sanitized_test_contents = None
+    if test_contents:
+        sanitized_test_contents = {
+            path: _sanitize_for_openai(content) 
+            for path, content in test_contents.items()
+        }
 
     user_prompt = _format_user_prompt(
         pr_title,
         pr_body,
-        repo,
+        _sanitize_for_openai(repo),  # Sanitize repo name as well
         changed_files,
-        linked_issues=linked_issues,
+        linked_issues=sanitized_linked_issues,
         force_generate_instruction=force_generate_instruction,
-        test_contents=test_contents,
+        test_contents=sanitized_test_contents,
     )
 
     client = OpenAI(
@@ -313,12 +357,17 @@ def evaluate_and_generate_task(
     )
 
     try:
+        # Sanitize prompts to remove Unicode characters that break HTTP headers
+        # (U+2028 LINE SEPARATOR and U+2029 PARAGRAPH SEPARATOR)
+        sanitized_system_prompt = _sanitize_for_openai(COMBINED_SYSTEM_PROMPT)
+        sanitized_user_prompt = _sanitize_for_openai(user_prompt)
+        
         # Use structured outputs with parse() method - type-safe!
         completion = client.beta.chat.completions.parse(
             model=model,
             messages=[
-                {"role": "system", "content": COMBINED_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
+                {"role": "system", "content": sanitized_system_prompt},
+                {"role": "user", "content": sanitized_user_prompt},
             ],
             response_format=CombinedPRTaskEvaluation,
             max_completion_tokens=MAX_COMPLETION_TOKENS,
