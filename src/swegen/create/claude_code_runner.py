@@ -442,37 +442,24 @@ Based on your analysis, edit the Dockerfile and test.sh.
 - **NEVER** use language-specific base images (node:XX, python:XX, golang:XX)
 - Install language runtimes via apt-get or official installers
 
-**CRITICAL: Dockerfile Layer Optimization**
+**CRITICAL: Dockerfile Layer Organization**
 
-Minimize layers and avoid redundant operations:
+Use TWO organized layers for clarity:
 
-1. **Single apt-get update** - Combine all apt-get install commands into ONE RUN layer:
-   ```dockerfile
-   # BAD - multiple apt-get update calls:
-   RUN apt-get update && apt-get install -y pkg1 && rm -rf /var/lib/apt/lists/*
-   RUN apt-get update && apt-get install -y pkg2 && rm -rf /var/lib/apt/lists/*
+1. **Layer 1: Base packages** (skeleton provides this) - git, curl, ca-certificates, patch, build-essential
+2. **Layer 2: Language runtime** - Python/Node/Ruby/etc. specific packages
 
-   # GOOD - single combined layer:
-   RUN apt-get update && apt-get install -y --no-install-recommends \\
-       pkg1 pkg2 pkg3 \\
-       && rm -rf /var/lib/apt/lists/*
-   ```
+Each layer follows this pattern:
+```dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    package1 package2 \\
+    && rm -rf /var/lib/apt/lists/*
+```
 
-2. **Edit skeleton's existing RUN** - The skeleton already has a base packages RUN.
-   ADD your packages to that existing RUN instead of creating new layers.
-
-3. **Combine related operations** - Symlinks, tool installs, etc. should be in same layer:
-   ```dockerfile
-   # GOOD - combined:
-   RUN apt-get update && apt-get install -y --no-install-recommends \\
-       python3.13 python3.13-dev python3.13-venv \\
-       && ln -sf /usr/bin/python3.13 /usr/bin/python3 \\
-       && ln -sf /usr/bin/python3.13 /usr/bin/python \\
-       && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \\
-       && rm -rf /var/lib/apt/lists/*
-   ```
-
-4. **apt lists cleanup ONCE** - Only `rm -rf /var/lib/apt/lists/*` at end of final apt layer.
+**Rules:**
+- Each RUN layer with apt-get should have exactly ONE `apt-get update` at the start
+- Each RUN layer with apt-get should have exactly ONE `rm -rf /var/lib/apt/lists/*` at the end
+- Combine related operations (symlinks, tool installs) within the same layer
 
 **Formatting Requirements:**
 - Always include a space before `\\` in multi-line commands: `--no-install-recommends \\` (not `--no-install-recommends\\`)
@@ -481,46 +468,48 @@ Minimize layers and avoid redundant operations:
 **Language Runtime Installation Examples:**
 
 **Python (PREFER uv for speed):**
+
+FIRST: Check `.python-version` or `pyproject.toml` for required Python version.
+
 ```dockerfile
-# For Python: combine runtime install, uv install, and cleanup in ONE layer
-# NOTE: Edit the skeleton's existing base packages RUN, don't create new layers!
+# If default Ubuntu python3 is sufficient:
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    git curl ca-certificates patch build-essential \\
     python3 python3-pip python3-venv python3-dev \\
     && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \\
     && rm -rf /var/lib/apt/lists/*
 
-# For specific Python version (e.g., 3.13 not in Ubuntu repos), use deadsnakes PPA:
+# If specific version needed (e.g., 3.12, 3.13 from .python-version), use deadsnakes PPA:
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    git curl ca-certificates patch build-essential software-properties-common \\
+    software-properties-common \\
     && add-apt-repository -y ppa:deadsnakes/ppa \\
     && apt-get update && apt-get install -y --no-install-recommends \\
-    python3.13 python3.13-dev python3.13-venv \\
-    && ln -sf /usr/bin/python3.13 /usr/bin/python3 \\
-    && ln -sf /usr/bin/python3.13 /usr/bin/python \\
+    python3.X python3.X-dev python3.X-venv \\
+    && ln -sf /usr/bin/python3.X /usr/bin/python3 \\
+    && ln -sf /usr/bin/python3.X /usr/bin/python \\
     && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \\
     && rm -rf /var/lib/apt/lists/*
+# Replace 3.X with actual version from .python-version or pyproject.toml
 ```
 
 **Node.js (check .nvmrc or package.json engines for version!):**
+
+FIRST: Check `.nvmrc`, `.node-version`, or `package.json` "engines.node" for required version.
+
 ```dockerfile
-# For Node.js: combine base packages, Node install, and package manager in ONE layer
-# NOTE: Edit the skeleton's existing base packages RUN, don't create new layers!
-# Check .nvmrc, .node-version, or package.json "engines.node" for required version
-RUN apt-get update && apt-get install -y --no-install-recommends \\
-    git curl ca-certificates patch build-essential \\
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \\
+# Install Node.js (replace XX with version from project, default to 20 if not specified)
+RUN curl -fsSL https://deb.nodesource.com/setup_XX.x | bash - \\
     && apt-get install -y --no-install-recommends nodejs \\
     && corepack enable \\
     && rm -rf /var/lib/apt/lists/*
 
-# Package manager setup - detect from lock file and add to the RUN above:
+# Package manager setup - detect from lock file:
 #   pnpm-lock.yaml → add: && corepack prepare pnpm@latest --activate
 #   yarn.lock → corepack enable is sufficient
 #   bun.lockb → add: && curl -fsSL https://bun.sh/install | bash && ln -s /root/.bun/bin/bun /usr/local/bin/bun
 #   package-lock.json or none → npm is included with Node.js (no extra setup)
 
-# If native compilation needed (node-gyp errors), add python3 make g++ to the apt-get install
+# If native compilation needed (node-gyp errors), add to base packages layer:
+#   python3 make g++
 ```
 
 **Go:**
@@ -537,9 +526,8 @@ ENV PATH="/root/.cargo/bin:${{PATH}}"
 
 **Ruby:**
 ```dockerfile
-# For Ruby: combine base packages, Ruby install, and bundler in ONE layer
+# Install Ruby runtime (separate layer from base packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    git curl ca-certificates patch build-essential \\
     ruby ruby-dev \\
     && gem install bundler \\
     && rm -rf /var/lib/apt/lists/*
@@ -547,9 +535,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
 
 **Java:**
 ```dockerfile
-# For Java: combine base packages and JDK/Maven in ONE layer
+# Install JDK and Maven (separate layer from base packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-    git curl ca-certificates patch build-essential \\
     openjdk-17-jdk maven \\
     && rm -rf /var/lib/apt/lists/*
 ```
