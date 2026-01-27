@@ -442,53 +442,85 @@ Based on your analysis, edit the Dockerfile and test.sh.
 - **NEVER** use language-specific base images (node:XX, python:XX, golang:XX)
 - Install language runtimes via apt-get or official installers
 
+**CRITICAL: Dockerfile Layer Optimization**
+
+Minimize layers and avoid redundant operations:
+
+1. **Single apt-get update** - Combine all apt-get install commands into ONE RUN layer:
+   ```dockerfile
+   # BAD - multiple apt-get update calls:
+   RUN apt-get update && apt-get install -y pkg1 && rm -rf /var/lib/apt/lists/*
+   RUN apt-get update && apt-get install -y pkg2 && rm -rf /var/lib/apt/lists/*
+
+   # GOOD - single combined layer:
+   RUN apt-get update && apt-get install -y --no-install-recommends \\
+       pkg1 pkg2 pkg3 \\
+       && rm -rf /var/lib/apt/lists/*
+   ```
+
+2. **Edit skeleton's existing RUN** - The skeleton already has a base packages RUN.
+   ADD your packages to that existing RUN instead of creating new layers.
+
+3. **Combine related operations** - Symlinks, tool installs, etc. should be in same layer:
+   ```dockerfile
+   # GOOD - combined:
+   RUN apt-get update && apt-get install -y --no-install-recommends \\
+       python3.13 python3.13-dev python3.13-venv \\
+       && ln -sf /usr/bin/python3.13 /usr/bin/python3 \\
+       && ln -sf /usr/bin/python3.13 /usr/bin/python \\
+       && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \\
+       && rm -rf /var/lib/apt/lists/*
+   ```
+
+4. **apt lists cleanup ONCE** - Only `rm -rf /var/lib/apt/lists/*` at end of final apt layer.
+
+**Formatting Requirements:**
+- Always include a space before `\\` in multi-line commands: `--no-install-recommends \\` (not `--no-install-recommends\\`)
+- Use `--no-install-recommends` to prevent installation of non-essential packages
+
 **Language Runtime Installation Examples:**
 
 **Python (PREFER uv for speed):**
 ```dockerfile
-# Install Python and uv (much faster than pip)
-RUN apt-get update && apt-get install -y \\
+# For Python: combine runtime install, uv install, and cleanup in ONE layer
+# NOTE: Edit the skeleton's existing base packages RUN, don't create new layers!
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    git curl ca-certificates patch build-essential \\
     python3 python3-pip python3-venv python3-dev \\
+    && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \\
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast package management
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \\
-    mv /root/.local/bin/uv /usr/local/bin/uv
+# For specific Python version (e.g., 3.13 not in Ubuntu repos), use deadsnakes PPA:
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    git curl ca-certificates patch build-essential software-properties-common \\
+    && add-apt-repository -y ppa:deadsnakes/ppa \\
+    && apt-get update && apt-get install -y --no-install-recommends \\
+    python3.13 python3.13-dev python3.13-venv \\
+    && ln -sf /usr/bin/python3.13 /usr/bin/python3 \\
+    && ln -sf /usr/bin/python3.13 /usr/bin/python \\
+    && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \\
+    && rm -rf /var/lib/apt/lists/*
 ```
 
 **Node.js (check .nvmrc or package.json engines for version!):**
 ```dockerfile
+# For Node.js: combine base packages, Node install, and package manager in ONE layer
+# NOTE: Edit the skeleton's existing base packages RUN, don't create new layers!
 # Check .nvmrc, .node-version, or package.json "engines.node" for required version
-# Default to Node 20 if not specified
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \\
-    apt-get install -y nodejs && \\
-    rm -rf /var/lib/apt/lists/*
-
-# Package manager setup - detect from lock file:
-#   pnpm-lock.yaml → pnpm
-#   yarn.lock → yarn
-#   bun.lockb → bun
-#   package-lock.json or none → npm
-
-# For pnpm:
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-# For yarn (classic or berry):
-RUN corepack enable
-
-# For bun:
-RUN curl -fsSL https://bun.sh/install | bash && ln -s /root/.bun/bin/bun /usr/local/bin/bun
-
-# npm is included with Node.js (no extra setup needed)
-```
-
-**Node.js native dependencies (node-gyp):**
-```dockerfile
-# Many npm packages need native compilation (node-gyp)
-# Add these if you see gyp errors during npm install:
-RUN apt-get update && apt-get install -y \\
-    python3 make g++ \\
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    git curl ca-certificates patch build-essential \\
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \\
+    && apt-get install -y --no-install-recommends nodejs \\
+    && corepack enable \\
     && rm -rf /var/lib/apt/lists/*
+
+# Package manager setup - detect from lock file and add to the RUN above:
+#   pnpm-lock.yaml → add: && corepack prepare pnpm@latest --activate
+#   yarn.lock → corepack enable is sufficient
+#   bun.lockb → add: && curl -fsSL https://bun.sh/install | bash && ln -s /root/.bun/bin/bun /usr/local/bin/bun
+#   package-lock.json or none → npm is included with Node.js (no extra setup)
+
+# If native compilation needed (node-gyp errors), add python3 make g++ to the apt-get install
 ```
 
 **Go:**
@@ -505,15 +537,21 @@ ENV PATH="/root/.cargo/bin:${{PATH}}"
 
 **Ruby:**
 ```dockerfile
-RUN apt-get update && apt-get install -y ruby ruby-dev && \\
-    rm -rf /var/lib/apt/lists/*
-RUN gem install bundler
+# For Ruby: combine base packages, Ruby install, and bundler in ONE layer
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    git curl ca-certificates patch build-essential \\
+    ruby ruby-dev \\
+    && gem install bundler \\
+    && rm -rf /var/lib/apt/lists/*
 ```
 
 **Java:**
 ```dockerfile
-RUN apt-get update && apt-get install -y openjdk-17-jdk maven && \\
-    rm -rf /var/lib/apt/lists/*
+# For Java: combine base packages and JDK/Maven in ONE layer
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    git curl ca-certificates patch build-essential \\
+    openjdk-17-jdk maven \\
+    && rm -rf /var/lib/apt/lists/*
 ```
 
 **Dependency Installation Examples:**
