@@ -252,11 +252,11 @@ The pipeline uses a **language-agnostic approach**:
   </a>
 </p>
 <p>
-  <a href="https://github.com/abundant-ai/SWE-gen-Go">
-    <img src="assets/swegen-go-banner.jpg" width="400" alt="SWE-gen-Go" />
-  </a>&nbsp;&nbsp;
-  <!-- <a href="https://github.com/abundant-ai/SWE-gen-Rust">
+  <a href="https://github.com/abundant-ai/SWE-gen-Rust">
     <img src="assets/swegen-rust-banner.jpg" width="400" alt="SWE-gen-Rust" />
+  </a>&nbsp;&nbsp;
+  <!-- <a href="https://github.com/abundant-ai/SWE-gen-Go">
+    <img src="assets/swegen-go-banner.jpg" width="400" alt="SWE-gen-Go" />
   </a> -->
 </p>
 <!-- <p>
