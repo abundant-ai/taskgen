@@ -27,7 +27,8 @@ Automates task creation from real bug fixes in open-source GitHub repos. Works w
 Each task reverses a merged PR to recreate the buggy state, verifies tests fail on baseline, and pass after applying the fix. Fully containerized with all dependencies installed at build time.
 
 ## News
-- [02/2026] ⚙️ **[SWE-gen-Rust](https://github.com/abundant-ai/SWE-gen-Rust)** released: 1,000 Rust tasks!
+- [02/2026] 🦫 **[SWE-gen-Go](https://github.com/abundant-ai/SWE-gen-Go)**: 1,000 Go tasks!
+- [02/2026] 🦀 **[SWE-gen-Rust](https://github.com/abundant-ai/SWE-gen-Rust)**: 1,000 Rust tasks!
 - [02/2026] ☕ **[SWE-gen-Java](https://github.com/abundant-ai/SWE-gen-Java)** released: 1,000 JVM tasks!
 - [01/2026] 🔥 **[SWE-gen-JS](https://github.com/abundant-ai/SWE-gen-JS)** released: 1,000 JS/TS task dataset generated with SWE-gen
 
@@ -98,7 +99,6 @@ Stream through entire PR history, process each sequentially with state persisten
 
 ```bash
 swegen farm fastapi/fastapi
-swegen farm fastapi/fastapi --resume-from 2024-01-15
 ```
 
 <details>
@@ -135,29 +135,12 @@ Verify that a task passes NOP (baseline fails) and Oracle (solution succeeds) ag
 swegen validate <task_id>
 ```
 
-<details>
-<summary>Options</summary>
-
-- `--task, -t ID` — Task ID when path points to dataset root
-- `--agent TYPE` — `both`, `nop`, or `oracle` (default: `both`)
-- `--jobs-dir PATH` — Directory to store Harbor job artifacts (default: `.swegen/harbor-jobs`)
-- `--env, -e TYPE` — Environment type: `docker`, `daytona`, `e2b`, `modal`, `runloop`, `gke` (default: `docker`)
-- `--timeout-multiplier N` — Multiply default timeouts
-- `--max-parallel N` — Max parallel validations (default: 8)
-- `--show-passed` — Show passed tasks in batch mode
-- `--output, -o PATH` — Write results to file as they complete (batch mode only)
-- `--docker-prune-batch N` — Run docker cleanup after every N tasks (default: 5, 0 to disable)
-- `-v, --verbose` / `-q, --quiet`
-
-</details>
-
 ### Analyze Task Quality
 
 Run agent trials to verify a task is well-specified and solvable:
 
 ```bash
 swegen analyze <task_id>
-swegen analyze <task_id> -k 5 -a claude-code
 ```
 
 <details>
@@ -175,27 +158,6 @@ swegen analyze <task_id> -k 5 -a claude-code
 - `GOOD_FAILURE` — Agent failed due to its own limitations
 - `BAD_FAILURE` — Agent failed due to task issues (underspecified, brittle tests, etc.)
 - `HARNESS_ERROR` — Infrastructure problem
-
-</details>
-
-<details>
-<summary>Options</summary>
-
-- `-a, --agent TYPE` — Agent to run trials (default: `claude-code`)
-- `-m, --model MODEL` — Model for agent trials (default: `anthropic/claude-sonnet-4-5`)
-- `-k, --n-trials N` — Number of trials (default: 3)
-- `-n, --n-concurrent N` — Number of concurrent trials (default: 3, 1=sequential)
-- `--jobs-dir PATH` — Directory to store job artifacts (default: `.swegen/analyze-jobs`)
-- `--analysis-model MODEL` — Model for Claude Code classification (default: `claude-sonnet-4-5`)
-- `--env, -e TYPE` — Environment type: `docker`, `daytona`, `e2b`, `modal`, `runloop`, `gke` (default: `docker`)
-- `--skip-quality-check` — Skip static quality check
-- `--skip-baseline` — Skip baseline validation (nop/oracle)
-- `--skip-classify` — Skip AI-powered classification
-- `--save-to-dir` — Write trajectory-analysis.{md,json} to each trial directory (for CI integration)
-- `--classification-timeout N` — Timeout per trial classification in seconds (default: 300)
-- `--verdict-timeout N` — Timeout for verdict synthesis in seconds (default: 180)
-- `--timeout-multiplier N` — Multiply default timeouts
-- `-v, --verbose`
 
 </details>
 
@@ -255,9 +217,9 @@ The pipeline uses a **language-agnostic approach**:
   <a href="https://github.com/abundant-ai/SWE-gen-Rust">
     <img src="assets/swegen-rust-banner.jpg" width="400" height="200" alt="SWE-gen-Rust" />
   </a>&nbsp;&nbsp;
-  <!-- <a href="https://github.com/abundant-ai/SWE-gen-Go">
-    <img src="assets/swegen-go-banner.jpg" width="400" height="120" alt="SWE-gen-Go" />
-  </a> -->
+  <a href="https://github.com/abundant-ai/SWE-gen-Go">
+    <img src="assets/swegen-go-banner.jpg" width="400" height="200" alt="SWE-gen-Go" />
+  </a>
 </p>
 <!-- <p>
   <a href="https://github.com/abundant-ai/SWE-gen-Cpp">
