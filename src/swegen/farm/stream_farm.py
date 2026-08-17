@@ -21,6 +21,7 @@ from rich.table import Table
 from rich.text import Text
 
 from swegen.config import FarmConfig
+from swegen.create.claude_code_utils import get_claude_version
 from swegen.publish import PublishError, build_state_store, build_task_sink
 
 from .farm_hand import (
@@ -353,7 +354,7 @@ class StreamFarmer:
             "sandbox_id": os.environ.get("DAYTONA_SANDBOX_ID"),
             "versions": {
                 "swegen": _ver("swegen"),
-                "claude_agent_sdk": _ver("claude-agent-sdk"),
+                "claude_code": get_claude_version(),
                 "harbor": _ver("harbor"),
                 "python": platform.python_version(),
             },

@@ -7,31 +7,32 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from harbor.models.trial.result import TrialResult
 from harbor.models.environment_type import EnvironmentType
+from harbor.models.trial.result import TrialResult
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
 
-from .models import (
-    BaselineValidation,
-    Classification,
-    TaskVerdict,
-    TrialClassification,
-)
-from .classifier import (
-    TrialClassifier,
-    classify_baseline_result,
-    compute_task_verdict,
-    VERDICT_MODEL,
-)
 from swegen.tools.harbor_runner import (
     harbor_cmd_base,
     parse_harbor_outcome,
     run_harbor_agent,
 )
 from swegen.tools.policy import find_test_network_violations
+
+from .classifier import (
+    VERDICT_MODEL,
+    TrialClassifier,
+    classify_baseline_result,
+    compute_task_verdict,
+)
+from .models import (
+    BaselineValidation,
+    Classification,
+    TaskVerdict,
+    TrialClassification,
+)
 
 
 def _setup_claude_auth_preference(console: Console) -> None:
@@ -40,6 +41,7 @@ def _setup_claude_auth_preference(console: Console) -> None:
     For Claude Code trials and classification, we prefer OAuth token:
     1. CLAUDE_CODE_OAUTH_TOKEN (preferred - run 'claude setup-token')
     2. ANTHROPIC_API_KEY (fallback)
+    3. Existing Claude Code CLI login
     
     Displays which authentication method is being used.
     """
@@ -58,8 +60,8 @@ def _setup_claude_auth_preference(console: Console) -> None:
         console.print("[dim]🔐 Claude Code authentication: API key (fallback)[/dim]")
         console.print("[dim]   Tip: For better security, use OAuth token ('claude setup-token')[/dim]")
     else:
-        console.print("[yellow]⚠️  No Claude Code authentication configured[/yellow]")
-        console.print("[yellow]   Set CLAUDE_CODE_OAUTH_TOKEN (preferred) or ANTHROPIC_API_KEY[/yellow]")
+        console.print("[dim]🔐 Claude Code authentication: using configured CLI login[/dim]")
+        console.print("[dim]   Verify with 'claude auth status' or sign in with 'claude auth login'[/dim]")
 
 
 @dataclass

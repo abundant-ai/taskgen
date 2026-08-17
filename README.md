@@ -53,11 +53,17 @@ swegen farm fastapi/fastapi
 uv pip install swegen
 ```
 
+SWE-gen invokes the `claude` executable directly. Install
+[Claude Code](https://code.claude.com/docs/en/setup) 2.0.45 or newer, ensure it is available
+on `PATH`, and authenticate with `claude auth login`. Non-interactive environments can use
+`CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` instead.
+
 Ensure these environment variables are set:
 
 ```bash
 export GITHUB_TOKEN=<gh-token>
 export OPENAI_API_KEY=<api-key>
+# Optional when already authenticated with `claude auth login`:
 export ANTHROPIC_API_KEY=<api-key>  # or CLAUDE_CODE_OAUTH_TOKEN
 ```
 

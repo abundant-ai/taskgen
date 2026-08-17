@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from pathlib import Path
 from typing import Any
-import json
-from claude_agent_sdk import (
-    ClaudeAgentOptions,
-    ClaudeSDKClient,
-    ResultMessage,
-)
+
 from harbor.models.trial.result import TrialResult
 from openai import OpenAI
 from rich.console import Console
 
-from swegen.create.claude_code_utils import Colors, print_sdk_message
+from swegen.create.claude_code_utils import (
+    ClaudeCLITimeoutError,
+    Colors,
+    run_claude_code,
+)
 
 from .models import (
     BaselineResult,
@@ -26,7 +26,6 @@ from .models import (
     TrialClassificationModel,
 )
 
-
 # OpenAI verdict synthesis constants
 VERDICT_MODEL = "gpt-5.5"
 VERDICT_TIMEOUT = 120.0
@@ -35,10 +34,10 @@ VERDICT_MAX_TOKENS = 4096
 
 # Load prompt templates
 _CLASSIFY_PROMPT_PATH = Path(__file__).parent / "classify_prompt.txt"
-_CLASSIFY_PROMPT = _CLASSIFY_PROMPT_PATH.read_text()
+_CLASSIFY_PROMPT = _CLASSIFY_PROMPT_PATH.read_text(encoding="utf-8")
 
 _VERDICT_PROMPT_PATH = Path(__file__).parent / "verdict_prompt.txt"
-_VERDICT_PROMPT = _VERDICT_PROMPT_PATH.read_text()
+_VERDICT_PROMPT = _VERDICT_PROMPT_PATH.read_text(encoding="utf-8")
 
 
 def classify_trial(
@@ -81,13 +80,14 @@ def classify_trial(
 class TrialClassifier:
     """Classifies trial outcomes using Claude Code to identify task quality issues.
     
-    Uses Claude Agent SDK with file access to explore trial artifacts
+    Uses the Claude Code CLI with file access to explore trial artifacts
     and classify whether outcomes reveal task problems.
     
     Authentication (in priority order):
     1. CLAUDE_CODE_OAUTH_TOKEN environment variable (recommended)
        - Generate with: claude setup-token (requires Claude Pro/Max)
     2. ANTHROPIC_API_KEY environment variable (fallback)
+    3. Existing Claude Code CLI login
     """
     
     def __init__(
@@ -121,12 +121,12 @@ class TrialClassifier:
             # Prefer OAuth - unset API key to ensure OAuth is used
             if "ANTHROPIC_API_KEY" in os.environ:
                 os.environ.pop("ANTHROPIC_API_KEY")
-            # No action needed - Claude SDK will use CLAUDE_CODE_OAUTH_TOKEN
+            # No action needed - Claude Code will use CLAUDE_CODE_OAUTH_TOKEN
         elif has_api_key:
             # Use API key - unset OAuth to ensure API key is used
             if "CLAUDE_CODE_OAUTH_TOKEN" in os.environ:
                 os.environ.pop("CLAUDE_CODE_OAUTH_TOKEN")
-            # No action needed - Claude SDK will use ANTHROPIC_API_KEY
+            # No action needed - Claude Code will use ANTHROPIC_API_KEY
         else:
             # No authentication available - will fail when trying to classify
             # We'll handle this gracefully in classify_trial
@@ -231,49 +231,27 @@ class TrialClassifier:
             trial_dir=str(trial_dir),
         )
         
-        # Run Claude Code with file access
-        options = ClaudeAgentOptions(
-            permission_mode="bypassPermissions",
-            allowed_tools=["Read", "Glob"],
-            cwd=str(trial_dir),
-            add_dirs=[str(task_dir)],
-            model=self._model,
-            # Prefer structured output when supported by the SDK/runtime.
-            # This avoids brittle "parse JSON from text" logic entirely.
-            output_format={
-                "type": "json_schema",
-                "schema": TrialClassificationModel.model_json_schema(),
-            },
-        )
-        
-        structured_output: Any = None
+        # Run Claude Code with file access and CLI-native structured output. Claude Code
+        # 2.0.45+ exposes the final object as `structured_output` in the result envelope.
         try:
-            # Check for authentication before attempting to classify
-            has_auth = bool(os.getenv("CLAUDE_CODE_OAUTH_TOKEN") or os.getenv("ANTHROPIC_API_KEY"))
-            if not has_auth:
-                raise RuntimeError(
-                    "No authentication configured. Set either CLAUDE_CODE_OAUTH_TOKEN "
-                    "(preferred, run 'claude setup-token') or ANTHROPIC_API_KEY"
-                )
-            
             if self._verbose:
                 print(f"{Colors.YELLOW}[Classifier] Running Claude Code classification (timeout: {self._timeout}s)...{Colors.RESET}", flush=True)
                 print(f"{Colors.YELLOW}[Classifier] Trial: {trial_dir.name}{Colors.RESET}", flush=True)
                 print(f"{Colors.YELLOW}[Classifier] Task: {task_dir.name}{Colors.RESET}", flush=True)
                 print("-" * 60, flush=True)
             
-            # Run with timeout
             try:
-                async with asyncio.timeout(self._timeout):
-                    async with ClaudeSDKClient(options=options) as client:
-                        await client.query(prompt)
-                        
-                        async for message in client.receive_response():
-                            if self._verbose:
-                                print_sdk_message(message)
-                            if isinstance(message, ResultMessage):
-                                structured_output = message.structured_output
-            except TimeoutError:
+                cli_result = await run_claude_code(
+                    prompt,
+                    cwd=trial_dir,
+                    add_dirs=[task_dir],
+                    model=self._model,
+                    allowed_tools=["Read", "Glob"],
+                    output_schema=TrialClassificationModel.model_json_schema(),
+                    timeout=self._timeout,
+                    verbose=self._verbose,
+                )
+            except ClaudeCLITimeoutError:
                 if self._verbose:
                     print(f"{Colors.RED}[Classifier] Timed out after {self._timeout}s{Colors.RESET}", flush=True)
                 return TrialClassification(
@@ -285,9 +263,16 @@ class TrialClassifier:
                     recommendation="Review trial manually or increase timeout",
                     reward=reward,
                 )
-            
+
+            if not cli_result.succeeded:
+                raise RuntimeError(
+                    cli_result.error_message
+                    or f"Claude Code exited with code {cli_result.returncode}"
+                )
+
+            structured_output = cli_result.structured_output
             if structured_output is None:
-                raise RuntimeError("Claude Agent SDK did not return structured_output for this request")
+                raise RuntimeError("Claude Code CLI did not return structured_output for this request")
             
             if self._verbose:
                 print("-" * 60, flush=True)
@@ -317,7 +302,7 @@ class TrialClassifier:
         try:
             data: Any = structured_output
 
-            # Allow mild nesting from some SDK wrappers
+            # Allow mild nesting from historical SDK/CLI wrappers.
             if isinstance(data, dict):
                 if "structured_output" in data and isinstance(data["structured_output"], dict):
                     data = data["structured_output"]
