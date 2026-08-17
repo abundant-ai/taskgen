@@ -27,7 +27,7 @@ uv pip install -e .
 - Python 3.12+
 - Docker
 - uv
-- [Claude Code CLI](https://github.com/anthropics/claude-code)
+- [Claude Code CLI](https://code.claude.com/docs/en/setup) 2.0.45+
 - GitHub token (for API access)
 - OpenAI API key (for PR evaluation)
 
@@ -35,7 +35,7 @@ uv pip install -e .
 ```bash
 export GITHUB_TOKEN=<token>
 export OPENAI_API_KEY=<key>
-export ANTHROPIC_API_KEY=<key>  # or Claude Code OAuth
+export ANTHROPIC_API_KEY=<key>  # or CLAUDE_CODE_OAUTH_TOKEN / `claude auth login`
 ```
 
 ## CLI Commands
@@ -129,8 +129,8 @@ abort that happens to hit both reports both — the panel never claims farm stat
 when it was not. Non-publish failures (trivial, no-issue, validation) never abort.
 
 A **Claude rate/usage limit** also aborts (category `rate_limited`). Claude Code failures
-whose error matches a rate-limit signature — notably `rate_limit_event`, the SDK message
-that `claude-agent-sdk` fails to parse — are raised as `ClaudeRateLimitError` rather than
+whose CLI output matches a rate-limit signature — including `rate_limit_event` — are raised
+as `ClaudeRateLimitError` rather than
 swallowed into a validation failure. Every task draws from the same limit, so continuing is
 pointless until the token/account is swapped; the run stops and the source PR is left
 unprocessed so a re-run with a fresh token farms it. The abort panel says to swap the token.
@@ -455,7 +455,7 @@ Comprehensive task quality analysis module:
 
 Components:
 - **run.py** - Main analysis orchestrator
-- **classifier.py** - AI-powered failure classification using Claude Agent SDK
+- **classifier.py** - AI-powered failure classification using the Claude Code CLI
 - **models.py** - Pydantic models for analysis results
 - **classify_prompt.txt** - Prompt template for failure classification
 - **verdict_prompt.txt** - Prompt template for solution verdict

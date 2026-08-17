@@ -132,7 +132,7 @@ def _classify_failure(stderr: str) -> tuple[str, str]:
     - other: Unknown/other errors
     """
     lowered = stderr.lower()
-    # Checked first: these wrap git/HTTP/SDK output that would otherwise match the
+    # Checked first: these wrap git/HTTP/Claude CLI output that would otherwise match the
     # "timeout" or "git" heuristics below.
     if "claude rate limit" in lowered or "rate_limit_event" in lowered:
         return "rate_limited", (stderr or "Claude rate limit").replace("\n", " ")

@@ -2,19 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from claude_agent_sdk import (
-    AssistantMessage,
-    ClaudeAgentOptions,
-    HookMatcher,
-    TextBlock,
-    query,
+from swegen.create.claude_code_utils import (
+    ClaudeCLIError,
+    ClaudeCLINotFoundError,
+    ClaudeCLITimeoutError,
+    Colors,
+    run_claude_code,
 )
-
-from swegen.create.claude_code_utils import Colors, print_sdk_message
 from swegen.tools.harbor_runner import parse_harbor_outcome
 
 
@@ -29,9 +26,8 @@ class ClaudeRateLimitError(RuntimeError):
 
 
 # Substrings (lowercased) that mark a Claude Code failure as a rate/usage limit rather than
-# a task-specific problem. `rate_limit_event` is the SDK message-parse crash observed in the
-# field (claude-agent-sdk does not handle that stream event); the others cover a 429 or usage
-# cap surfaced through the SDK.
+# a task-specific problem. These cover the event names and messages emitted by different
+# Claude Code CLI versions.
 _RATE_LIMIT_MARKERS = ("rate_limit_event", "rate limit", "rate_limited", "usage limit")
 
 
@@ -913,83 +909,83 @@ async def _run_claude_code_session_async(
     if enforce_offline_tests:
         prompt_text = prompt_text + "\n" + TEST_OFFLINE_CONSTRAINT
 
-    # Create hook for logging Harbor validation attempts
-    harbor_runs: list[str] = []
-
-    async def log_harbor_runs(input_data: dict, tool_use_id: str, context: dict) -> dict:
-        """Log Harbor validation attempts for debugging."""
-        command = input_data.get("tool_input", {}).get("command", "")
-        if "harbor run" in command:
-            harbor_runs.append(command)
-            if verbose:
+    def log_harbor_run(event: dict) -> None:
+        """Highlight Harbor validation commands in the Claude Code event stream."""
+        if event.get("type") != "assistant":
+            return
+        message = event.get("message")
+        if not isinstance(message, dict):
+            return
+        content = message.get("content")
+        if not isinstance(content, list):
+            return
+        for block in content:
+            if not isinstance(block, dict) or block.get("type") != "tool_use":
+                continue
+            if str(block.get("name", "")).lower() != "bash":
+                continue
+            tool_input = block.get("input")
+            if not isinstance(tool_input, dict):
+                continue
+            command = str(tool_input.get("command", ""))
+            if "harbor run" in command:
                 print(f"{Colors.YELLOW}[Harbor]{Colors.RESET} {command}", flush=True)
-        return {}
 
     try:
-        logger.info("Invoking Claude Code SDK with %ds timeout...", timeout)
+        logger.info("Invoking Claude Code CLI with %ds timeout...", timeout)
+        project_root = Path.cwd().resolve()
 
         if verbose:
-            project_root = os.getcwd()
-            print("[SDK] Running Claude Code Agent SDK", flush=True)
-            print(f"[SDK] Working directory: {project_root}", flush=True)
-            print(f"[SDK] Repo path: {repo_path}", flush=True)
-            print(f"[SDK] Task dir: {task_dir}", flush=True)
+            print("[Claude CLI] Running Claude Code subprocess", flush=True)
+            print(f"[Claude CLI] Working directory: {project_root}", flush=True)
+            print(f"[Claude CLI] Repo path: {repo_path}", flush=True)
+            print(f"[Claude CLI] Task dir: {task_dir}", flush=True)
             print("-" * 60, flush=True)
 
-        # Configure SDK options
-        options = ClaudeAgentOptions(
-            allowed_tools=["Read", "Write", "Edit", "Glob", "Grep", "LS", "Bash"],
-            permission_mode="bypassPermissions",  # Auto-approve actions
-            cwd=os.getcwd(),  # Run from project root
-            model="claude-opus-4-8",  # Use Opus 4.8
-            hooks={
-                "PreToolUse": [HookMatcher(matcher="Bash", hooks=[log_harbor_runs])]
-            } if verbose else {},
-        )
-
-        # Run with timeout
         try:
-            async with asyncio.timeout(timeout):
-                response_parts = []
-                
-                if verbose:
-                    # Stream messages with real-time display
-                    async for message in query(prompt=prompt_text, options=options):
-                        print_sdk_message(message)
-                        
-                        # Collect text for final result
-                        if isinstance(message, AssistantMessage):
-                            for block in message.content:
-                                if isinstance(block, TextBlock):
-                                    response_parts.append(block.text)
-                else:
-                    # Collect messages without printing
-                    async for message in query(prompt=prompt_text, options=options):
-                        if isinstance(message, AssistantMessage):
-                            for block in message.content:
-                                if isinstance(block, TextBlock):
-                                    response_parts.append(block.text)
-
-        except TimeoutError:
+            cli_result = await run_claude_code(
+                prompt_text,
+                cwd=project_root,
+                model="claude-opus-4-8",
+                timeout=timeout,
+                verbose=verbose,
+                event_callback=log_harbor_run if verbose else None,
+                allowed_tools=["Read", "Write", "Edit", "Glob", "Grep", "LS", "Bash"],
+            )
+        except ClaudeCLITimeoutError:
             logger.warning("Claude Code session timed out after %ds", timeout)
             if verbose:
-                print(f"\n[SDK] Timed out after {timeout}s", flush=True)
+                print(f"\n[Claude CLI] Timed out after {timeout}s", flush=True)
             return _check_validation_state(jobs_dir, task_id, logger, timed_out=True)
 
         if verbose:
             print("-" * 60, flush=True)
-            print("[SDK] Session complete", flush=True)
+            print(
+                f"[Claude CLI] Session complete (exit={cli_result.returncode})",
+                flush=True,
+            )
 
-        # Check final state from job files
-        return _check_validation_state(jobs_dir, task_id, logger)
+        cc_output = cli_result.result or cli_result.assistant_text or None
+        if not cli_result.succeeded:
+            failure = cli_result.error_message or f"Claude Code exited with {cli_result.returncode}"
+            logger.error("Claude Code CLI failed: %s", failure)
+            return _check_validation_state(
+                jobs_dir,
+                task_id,
+                logger,
+                failure_message=f"Claude Code failed: {failure}",
+                cc_output=cc_output,
+            )
 
-    except Exception as e:
+        return _check_validation_state(jobs_dir, task_id, logger, cc_output=cc_output)
+
+    except (ClaudeCLINotFoundError, ClaudeCLIError) as e:
         logger.error("Claude Code session failed: %s", e)
-        return ClaudeCodeResult(
-            success=False,
-            nop_passed=False,
-            oracle_passed=False,
-            error_message=f"SDK failed: {e}",
+        return _check_validation_state(
+            jobs_dir,
+            task_id,
+            logger,
+            failure_message=f"Claude Code failed: {e}",
         )
 
 
@@ -998,6 +994,8 @@ def _check_validation_state(
     task_id: str,
     logger: logging.Logger,
     timed_out: bool = False,
+    failure_message: str | None = None,
+    cc_output: str | None = None,
 ) -> ClaudeCodeResult:
     """Check validation state from harbor job results."""
     nop_passed, oracle_passed = _check_job_results(jobs_dir, task_id)
@@ -1006,6 +1004,8 @@ def _check_validation_state(
     error_message = None
     if not success:
         parts = []
+        if failure_message:
+            parts.append(failure_message)
         if timed_out:
             parts.append("CC timed out")
         if not nop_passed:
@@ -1019,6 +1019,7 @@ def _check_validation_state(
         nop_passed=nop_passed,
         oracle_passed=oracle_passed,
         error_message=error_message,
+        cc_output=cc_output[:5000] if cc_output else None,
     )
 
 
